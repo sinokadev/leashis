@@ -28,3 +28,5 @@ jobs:
 
       - name: Build with Gradle
         run: ./gradlew build
+      - name: Run Minecraft regression tests
+        run: ./gradlew runGameTestServer

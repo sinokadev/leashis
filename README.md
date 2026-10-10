@@ -1,25 +1,94 @@
+# Leashis
 
-Installation information
-=======
+Minecraft **1.21.1** / NeoForge **21.1.257 이상** / Java **21**용 플레이어 목줄 모드입니다.
+서버에서 연결 상태와 물리를 처리하며, 바닐라의 투명 거북이 엔티티로 줄을 표시합니다.
+새 아이템·엔티티 타입·필수 커스텀 네트워크 패킷을 등록하지 않아 클라이언트 모드 없이
+사용할 수 있도록 설계했습니다. 실제 클라이언트 두 명의 줄 표시와 접속 호환성은 수동 확인 항목입니다.
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+## 설치 및 사용
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+1. `./gradlew build`로 빌드합니다.
+2. `build/libs/leashis-1.0.0.jar`를 NeoForge 서버의 `mods/`에 넣습니다.
+3. 서버를 실행하고 목줄을 들고 다른 플레이어를 우클릭합니다.
+4. 보유자가 연결 후 1초 이상 지나 대상을 다시 우클릭하면 해제됩니다. 빈손으로도 가능합니다.
+5. 울타리를 우클릭하면 바닐라 목줄 동작으로 울타리 매듭에 연결할 수 있습니다.
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+기본값으로 4블록부터 보유자 방향으로 끌어당기고, 10블록을 넘으면 줄이 끊어집니다.
+생존 모드에서는 연결 시 목줄 하나를 소비하고 해제 시 대상 근처에 반환합니다.
+크리에이티브에서 시작한 연결은 목줄을 소비하거나 반환하지 않습니다.
+여러 플레이어를 동시에 묶을 수 있지만 이미 연결된 대상을 빼앗을 수는 없습니다.
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+묶인 플레이어는 기본적으로 울타리 매듭을 직접 우클릭/공격해서 제거할 수 없으며,
+묶여 있는 동안 차원 이동(포털 및 차원을 바꾸는 명령 포함)이 차단됩니다.
+사망, 로그아웃, 탑승, 관전 모드 전환, 기능 비활성화 또는 보유자 차원 변경 시 연결을 정리합니다.
+서버를 정상 종료하면 연결을 해제하고 소비한 목줄을 반환합니다. 재시작 후 연결은 유지하지 않습니다.
+표시용 엔티티는 월드에 저장하지 않으며 제거 시 충돌 방지 팀 소속도 함께 정리합니다.
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+## 설정
+
+서버 최초 실행 후 `config/leashis-server.toml`을 수정하세요.
+월드의 `serverconfig/leashis-server.toml`에 파일을 두면 해당 월드에서 우선 적용합니다.
+이 경로는 NeoForge 21.1.257의 설정 로딩 방식입니다.
+
+```toml
+enabled = true
+distanceMin = 4
+distanceMax = 10
+allowLeashedRemoveFenceKnot = false
+```
+
+`distanceMin` 범위는 0~1024, `distanceMax` 범위는 1~1024입니다.
+최소 거리가 최대 거리 이상이면 실제 당김 시작 거리는 최대 거리 - 1로 제한합니다.
+
+## 개발 및 검증
+
+```sh
+./gradlew build
+./gradlew runGameTestServer
+./gradlew runClient
+./gradlew runServer
+```
+
+IntelliJ에서 Gradle 프로젝트로 열고 동기화하면 동일한 Gradle 작업을 실행할 수 있습니다.
+일반 전용 서버는 최초 실행 시 생성되는 `run/eula.txt`의 약관을 확인하고
+동의하면 `eula=true`로 변경한 뒤 다시 실행하세요.
+
+GameTest 서버는 다음 12개 회귀 테스트를 실행합니다.
+
+- 생존 모드 아이템 소비, 중복 상호작용 및 중복 반환 방지
+- 크리에이티브 모드에서 아이템 생성 방지
+- 자기 자신 및 이미 연결된 대상 거부
+- 두 종류의 우클릭 패킷에서 수동 해제 유지
+- 거리별 당김과 끊김
+- 바닐라 울타리 연결, 매듭 보호, 연결 해제 시 한 번만 반환
+- 보유자 로그아웃 시 여러 대상 정리
+- 프록시 저장 방지, 차원 이동 차단, 종료 중복 호출
+- 기능 비활성화 시 연결 해제
+- 대상 사망과 프록시 제거 경로의 중복 반환 방지
+- 탑승 시 연결 해제
+- 거리 0과 잘못된 거리 설정에서 유한한 속도 유지
+
+테스트 코드는 `src/gametest/`에 있으며 개발 환경에서만 실행되고 배포 JAR에서는 제외됩니다.
+테스트가 사용하는 월드는 개발 실행 폴더 `run/`에 생성됩니다.
+배포 전 수동 확인: 두 클라이언트로 접속해 줄 표시·이동·웅크리기·울타리 연결을 확인하세요.
+
+## 코드 구조
+
+| 파일 | 역할 |
+| --- | --- |
+| `Leashis.java` | 서버 설정 및 이벤트 등록 |
+| `Config.java` | 서버 설정 정의 |
+| `leash/LeashManager.java` | 연결·아이템 소비·당김·해제, 중복 패킷 처리 |
+| `leash/LeashSession.java` | 대상·프록시·연결 시각·목줄 반환 여부 |
+| `leash/LeashProxyEntity.java` | 줄 표시, 대상 위치 추적, 저장 및 충돌 방지 |
+| `leash/LeashEvents.java` | 상호작용·울타리 보호·생명주기·차원 이동 이벤트 |
+
+울타리 연결에서 보유자가 바뀌는 경우를 놓치지 않도록 세션은 프록시에서
+현재 보유자를 직접 읽습니다. 아이템 반환은 매니저 한 곳에서만 처리합니다.
+당김은 거리 기반 가속도와 속도 상한을 사용합니다.
+
+## 참고
+
+[pog5/mc-leashplayers](https://github.com/pog5/mc-leashplayers)의 서버 측 프록시 아이디어를 참고했습니다.
+현재 구현은 NeoForge 이벤트 기반으로 작성했으며 참고 저장소의 소스를 그대로 복사하지 않았습니다.
+MDK의 `TEMPLATE_LICENSE.txt`는 보존했습니다.

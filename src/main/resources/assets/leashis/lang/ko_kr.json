@@ -1,0 +1,13 @@
+{
+  "leashis.configuration.title": "Leashis 설정",
+  "leashis.configuration.section.leashis.server.toml": "서버 설정",
+  "leashis.configuration.section.leashis.server.toml.title": "서버 설정",
+  "leashis.configuration.enabled": "플레이어 목줄 활성화",
+  "leashis.configuration.distanceMin": "당김 시작 거리",
+  "leashis.configuration.distanceMax": "목줄 끊김 거리",
+  "leashis.configuration.allowLeashedRemoveFenceKnot": "묶인 플레이어의 울타리 매듭 제거 허용",
+  "leashis.message.attached": "%s 님에게 목줄을 연결했습니다.",
+  "leashis.message.bound": "%s 님의 목줄에 연결되었습니다.",
+  "leashis.message.released": "%s 님의 목줄을 풀었습니다.",
+  "leashis.message.already_bound": "이미 다른 곳에 연결된 플레이어입니다."
+}

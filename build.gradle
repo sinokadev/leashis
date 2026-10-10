@@ -188,3 +188,11 @@ idea {
         downloadJavadoc = true
     }
 }
+
+// Compile and run engine tests in development, keep them out of the distributed jar.
+sourceSets.main.java.srcDir('src/gametest/java')
+sourceSets.main.resources.srcDir('src/gametest/resources')
+tasks.named('jar', Jar).configure {
+    exclude('dev/sinoka/leashis/gametest/**')
+    exclude('data/leashis/structure/empty.nbt')
+}

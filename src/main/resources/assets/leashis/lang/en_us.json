@@ -1,13 +1,13 @@
 {
-  "itemGroup.leashis": "Example Mod Tab",
-  "block.leashis.example_block": "Example Block",
-  "item.leashis.example_item": "Example Item",
-
-  "leashis.configuration.title": "leashis Configs",
-  "leashis.configuration.section.leashis.common.toml": "leashis Configs",
-  "leashis.configuration.section.leashis.common.toml.title": "leashis Configs",
-  "leashis.configuration.items": "Item List",
-  "leashis.configuration.logDirtBlock": "Log Dirt Block",
-  "leashis.configuration.magicNumberIntroduction": "Magic Number Text",
-  "leashis.configuration.magicNumber": "Magic Number"
+  "leashis.configuration.title": "Leashis Settings",
+  "leashis.configuration.section.leashis.server.toml": "Server Settings",
+  "leashis.configuration.section.leashis.server.toml.title": "Server Settings",
+  "leashis.configuration.enabled": "Enable Player Leashing",
+  "leashis.configuration.distanceMin": "Pull Start Distance",
+  "leashis.configuration.distanceMax": "Leash Break Distance",
+  "leashis.configuration.allowLeashedRemoveFenceKnot": "Allow Leashed Players to Remove Fence Knots",
+  "leashis.message.attached": "Attached a lead to %s.",
+  "leashis.message.bound": "You are leashed to %s.",
+  "leashis.message.released": "Released %s.",
+  "leashis.message.already_bound": "This player is already leashed."
 }
