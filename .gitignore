@@ -38,3 +38,8 @@ run/
 **/src/generated/**/.cache/
 repo/
 !**/src/**/repo/
+
+# Distribution bundles and protocol test dependencies
+dist/
+node_modules/
+__pycache__/

@@ -1,0 +1,59 @@
+plugins { id 'java-library'; id 'net.neoforged.moddev' version '2.0.148' }
+def mc = providers.gradleProperty('mc').orElse('1.21.1').get()
+def spec = new groovy.json.JsonSlurper().parse(rootProject.file('versions.json'))[mc]
+if (spec == null || spec.neoForge == null) throw new GradleException("NeoForge is not available for $mc; use -Pplatforms=bukkit,fabric")
+layout.buildDirectory = file("build/$mc")
+java { toolchain.languageVersion = JavaLanguageVersion.of(spec.java as int) }
+base { archivesName = "leashis-neoforge-$mc" }
+neoForge {
+    version = spec.neoForge
+    runs {
+        server { server(); programArgument '--nogui'; gameDirectory = file("run/$mc") }
+        if (mc == '1.21.1') {
+            gameTestServer {
+                type = 'gameTestServer'
+                gameDirectory = file('run/gametest')
+                systemProperty 'neoforge.enabledGameTestNamespaces', 'leashis'
+            }
+        }
+    }
+    mods { leashis { sourceSet sourceSets.main } }
+}
+def generated = layout.buildDirectory.dir('generated/java')
+def generate = tasks.register('generateVersionSources', Exec) {
+    inputs.dir rootProject.file('mod-common/src/main/java')
+    inputs.dir file('src/main/java')
+    inputs.file rootProject.file('tools/generate_mod_sources.py')
+    inputs.property 'minecraft', mc
+    outputs.dir generated
+    commandLine 'python3', rootProject.file('tools/generate_mod_sources.py'), mc, 'neoforge', generated.get().asFile
+}
+sourceSets.main.java {
+    setSrcDirs(['../core/src/main/java', generated])
+    srcDir generated
+    exclude '**/LeashisClient.java'
+    if (mc == '1.21.1') srcDir 'src/gametest/java'
+}
+if (mc == '1.21.1') sourceSets.main.resources.srcDir('src/gametest/resources')
+tasks.named('compileJava') { dependsOn generate }
+def metadata = tasks.register('generateModMetadata', ProcessResources) {
+    inputs.properties(version: project.version, minecraft: mc, neoforge: spec.neoForge)
+    expand(mod_version: project.version, minecraft_version_range: "[$mc]", neo_version: spec.neoForge,
+           loader_version_range: '[1,)', mod_id: 'leashis', mod_name: 'Leashis', mod_license: 'All Rights Reserved')
+    from 'src/main/templates'
+    if (mc in ['1.20.2', '1.20.3', '1.20.4']) rename 'neoforge.mods.toml', 'mods.toml'
+    into layout.buildDirectory.dir('generated/resources')
+}
+sourceSets.main.resources.srcDir metadata
+neoForge.ideSyncTask metadata
+tasks.named('jar') {
+    exclude 'dev/sinoka/leashis/gametest/**', 'data/leashis/structure/empty.nbt'
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+// NFRT recompiles Minecraft and must use a compiler JDK, including for 26.x.
+tasks.named('createMinecraftArtifacts') {
+    javaExecutable = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(Math.max(21, spec.java as int)) }.map {
+        new File(it.metadata.installationPath.asFile, 'bin/java').absolutePath
+    }
+}
+tasks.withType(JavaExec).configureEach { standardInput = System.in }

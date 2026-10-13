@@ -1,9 +1,20 @@
 pluginManagement {
     repositories {
+        maven { url = 'https://maven.fabricmc.net/' }
+        maven { url = 'https://maven.neoforged.net/releases' }
         gradlePluginPortal()
     }
 }
 
 plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'leashis'
+include 'core'
+def platforms = providers.gradleProperty('platforms').orElse('bukkit,neoforge,fabric').get().split(',')
+platforms.each { include it }
+
+if (platforms.contains('neoforge') && providers.gradleProperty('mc').orElse('1.21.1').get() in ['1.20.2', '1.20.3', '1.20.5']) {
+    project(':neoforge').buildFileName = 'legacy.gradle'
 }

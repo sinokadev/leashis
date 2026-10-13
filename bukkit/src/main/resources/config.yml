@@ -1,0 +1,4 @@
+enabled: true
+distanceMin: 4
+distanceMax: 10
+allowLeashedRemoveFenceKnot: false

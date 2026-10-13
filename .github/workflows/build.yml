@@ -1,32 +1,85 @@
-name: Build
-
+name: Build all supported versions
 on: [push, pull_request]
-
 jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.targets.outputs.targets }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: targets
+        run: |
+          python3 - <<'PY'
+          import json,os
+          versions=json.load(open('versions.json'))
+          targets=[]
+          for mc,spec in versions.items():
+              targets.append({'mc':mc,'loader':'fabric'})
+              if spec['neoForge'] is not None:
+                  targets.append({'mc':mc,'loader':'neoforge'})
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+              f.write('targets='+json.dumps({'include':targets})+'\n')
+          PY
   build:
+    needs: matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.targets) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x gradlew
+      - name: Build exact Minecraft target
+        run: ./gradlew -Pmc=${{ matrix.mc }} -Pplatforms=${{ matrix.loader }} :${{ matrix.loader }}:build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: leashis-${{ matrix.loader }}-${{ matrix.mc }}
+          path: ${{ matrix.loader }}/build/${{ matrix.mc }}/libs/*.jar
+  bukkit-and-regressions:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Setup JDK 21
-        uses: actions/setup-java@v4
+          java-version: '25'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x gradlew
+      - run: ./gradlew -Pplatforms=bukkit :bukkit:build :core:check
+      - name: NeoForge engine integration tests
+        run: |
+          set -o pipefail
+          ./gradlew -Pplatforms=neoforge :neoforge:runGameTestServer | tee gametest.log
+          grep -F 'All 12 required tests passed' gametest.log
+      - uses: actions/upload-artifact@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      # This is needed to be able to run ./gradlew below
-      # You can run `git update-index --chmod +x gradlew` then remove this step.
-      - name: Make Gradle wrapper executable
-        run: chmod +x ./gradlew
-
-      - name: Build with Gradle
-        run: ./gradlew build
-      - name: Run Minecraft regression tests
-        run: ./gradlew runGameTestServer
+          name: leashis-bukkit
+          path: bukkit/build/libs/*.jar
+  vanilla-client-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: temurin
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tests/integration/package-lock.json
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x gradlew
+      - run: npm ci --prefix tests/integration
+      - name: Fabric with two unmodified protocol clients
+        run: python3 tools/smoke_server.py --loader fabric --mc 1.20.1 --client-script tests/integration/regression.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vanilla-client-test-log
+          path: build/smoke/fabric-1.20.1.log

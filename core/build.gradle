@@ -1,0 +1,10 @@
+plugins { id 'java-library' }
+java { toolchain.languageVersion = JavaLanguageVersion.of(17) }
+tasks.register('engineTest', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.sinoka.leashis.core.EngineTest'
+    enableAssertions = true
+}
+tasks.named('check') { dependsOn engineTest }
+tasks.named('test') { enabled = false } // engineTest is the executable regression suite.

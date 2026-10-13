@@ -1,0 +1,35 @@
+plugins { id 'java-library'; id 'net.neoforged.gradle.userdev' version '7.1.39' }
+def mc = providers.gradleProperty('mc').get()
+def spec = new groovy.json.JsonSlurper().parse(rootProject.file('versions.json'))[mc]
+layout.buildDirectory = file("build/$mc")
+java { toolchain.languageVersion = JavaLanguageVersion.of(spec.java as int) }
+base { archivesName = "leashis-neoforge-$mc" }
+dependencies { implementation "net.neoforged:neoforge:${spec.neoForge}" }
+def generated = layout.buildDirectory.dir('generated/java')
+def generate = tasks.register('generateVersionSources', Exec) {
+    inputs.dir rootProject.file('mod-common/src/main/java')
+    inputs.dir file('src/main/java')
+    inputs.file rootProject.file('tools/generate_mod_sources.py')
+    inputs.property 'minecraft', mc
+    outputs.dir generated
+    commandLine 'python3', rootProject.file('tools/generate_mod_sources.py'), mc, 'neoforge', generated.get().asFile
+}
+sourceSets.main.java.setSrcDirs(['../core/src/main/java', generated])
+tasks.named('compileJava') { dependsOn generate }
+processResources {
+    from('src/main/templates') {
+        if (mc in ['1.20.2', '1.20.3', '1.20.4']) rename 'neoforge.mods.toml', 'mods.toml'
+        expand(mod_version: project.version, minecraft_version_range: "[$mc]", neo_version: spec.neoForge,
+            loader_version_range: '[1,)', mod_id: 'leashis', mod_name: 'Leashis', mod_license: 'All Rights Reserved')
+    }
+}
+runs {
+    server {
+        workingDirectory = file("run/$mc")
+        modSource sourceSets.main
+    }
+}
+tasks.withType(net.neoforged.gradle.common.runtime.tasks.JavaSourceTransformer).configureEach {
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+}
+tasks.withType(JavaExec).configureEach { standardInput = System.in }

@@ -1,0 +1,1 @@
+{"required":true,"package":"dev.sinoka.leashis.fabric.mixin","compatibilityLevel":"JAVA_${java}","mixins":["DimensionMixin","CommandTeleportMixin"],"injectors":{"defaultRequire":1}}

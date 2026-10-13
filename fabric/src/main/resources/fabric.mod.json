@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "leashis",
+  "version": "${version}",
+  "name": "Leashis",
+  "environment": "server",
+  "entrypoints": { "server": ["dev.sinoka.leashis.fabric.LeashisFabric"] },
+  "mixins": ["leashis.fabric.mixins.json"],
+  "depends": { "fabricloader": ">=0.16.0", "minecraft": "${minecraft}", "java": ">=${java}", "fabric-api": "*" }
+}

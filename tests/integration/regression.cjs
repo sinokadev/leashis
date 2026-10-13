@@ -1,0 +1,114 @@
+const protocol = require('minecraft-protocol');
+const assert = require('node:assert/strict');
+const port = Number(process.argv[2]);
+const version = process.argv[3];
+const data = require('minecraft-data')(version);
+const delay = ms => new Promise(r => setTimeout(r,ms));
+const consoleCommand = s => console.log('CONSOLE '+s);
+let failure = false;
+function connect(name) {
+  const c=protocol.createClient({host:'127.0.0.1',port,username:name,version,auth:'offline'});
+  c.entities=new Map();c.items=[];c.motion=[];c.leashes=[];c.removed=[];c.itemCount=0;c.respawns=0;
+  c.on('error',e=>{console.error(name,e);failure=true});
+  c.on('kick_disconnect',p=>{console.error(name,'kicked',p);failure=true});
+  c.on('login',p=>{c.entityId=p.entityId});
+  c.on('respawn',()=>c.respawns++);
+  c.on('ping',p=>c.write('pong',{id:p.id}));
+  if(process.env.LEASHIS_PROTOCOL_DEBUG)c.on('packet',(p,m)=>{if(!c.position)console.log('PACKET',name,c.state,m.name,p.channel||'',p.id??'')});
+  c.on('state',state=>{if(state==='configuration')setImmediate(()=>c.write('custom_payload',{channel:'minecraft:brand',data:Buffer.from([7,...Buffer.from('vanilla')])}));});
+  c.on('spawn_entity',p=>{c.entities.set(p.entityId,p);if(p.type===data.entitiesByName.item.id)c.items.push(p)});
+  c.on('entity_destroy',p=>{for(const id of p.entityIds){c.removed.push(id);c.entities.delete(id)}});
+  c.on('entity_velocity',p=>c.motion.push(p));
+  c.on('attach_entity',p=>c.leashes.push(p));
+  function inspect(item){if(item && item.itemId===data.itemsByName.lead.id)c.itemCount=item.itemCount;}
+  c.on('set_slot',p=>{if(p.windowId===0 && p.slot===36){c.itemCount=0;inspect(p.item)}});
+  c.on('window_items',p=>{if(p.windowId===0){c.itemCount=0;inspect(p.items[36])}});
+  c.on('position',p=>{
+    c.write('teleport_confirm',{teleportId:p.teleportId});
+    c.position=p;
+    c.write('position_look',{x:p.x,y:p.y,z:p.z,yaw:p.yaw,pitch:p.pitch,onGround:true});
+  });
+  c.on('end',()=>clearInterval(c.timer));
+  c.timer=setInterval(()=>{if(c.state==='play' && c.position)c.write('flying',{onGround:true})},100);
+  return c;
+}
+function click(owner,id){
+ owner.write('use_entity',{target:id,mouse:2,x:0,y:1,z:0,hand:0,sneaking:false});
+ owner.write('use_entity',{target:id,mouse:0,hand:0,sneaking:false});
+}
+(async()=>{
+ const owner=connect('LeashOwner'),target=connect('LeashTarget');
+ try {
+  for(let i=0;i<100&&(!owner.position||!target.position);i++)await delay(100);
+  assert(owner.position&&target.position,'Both vanilla clients must join');
+  console.log('CLIENT vanilla clients joined');
+  consoleCommand('gamerule doMobSpawning false');consoleCommand('gamerule doDaylightCycle false');
+  consoleCommand('fill -15 79 -15 15 79 15 stone');
+  consoleCommand('gamemode survival LeashOwner');consoleCommand('gamemode survival LeashTarget');
+  consoleCommand('tp LeashOwner 0 80 0');consoleCommand('tp LeashTarget 1 80 0');
+  consoleCommand('kill @e[type=item]');consoleCommand('clear LeashOwner');consoleCommand('clear LeashTarget');
+  consoleCommand('give LeashOwner minecraft:lead 3');
+  await delay(1000);assert.equal(owner.itemCount,3,'Initial inventory');owner.items=[];
+  click(owner,target.entityId);await delay(500);
+  assert.equal(owner.itemCount,2,'Attach consumes one lead across both interaction packets');
+  const proxy=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  assert(proxy,'Vanilla turtle proxy is visible to vanilla protocol');
+  assert(owner.leashes.some(l=>l.entityId===proxy.entityId && l.vehicleId===owner.entityId),'Leash packet attaches proxy to holder');
+  await delay(1100);click(owner,target.entityId);await delay(500);
+  assert(owner.removed.includes(proxy.entityId),'Manual release removes proxy');
+  assert(owner.itemCount>=2 && owner.itemCount<=3,'Manual release does not charge another lead; refund may be picked up');
+  assert.equal(owner.items.length,1,'Paid session refunds exactly one lead');
+  console.log('CLIENT survival, duplicate packets, rope display packets, manual refund PASS');
+  consoleCommand('kill @e[type=item]');consoleCommand('gamemode creative LeashOwner');
+  await delay(400);let count=owner.itemCount;let drops=owner.items.length;
+  click(owner,target.entityId);await delay(1400);click(owner,target.entityId);await delay(400);
+  assert.equal(owner.itemCount,count,'Creative does not consume lead');
+  assert.equal(owner.items.length,drops,'Creative does not mint a lead');
+  console.log('CLIENT creative accounting PASS');
+  consoleCommand('gamemode survival LeashOwner');consoleCommand('clear LeashOwner');
+  consoleCommand('give LeashOwner minecraft:lead 3');await delay(400);
+  click(owner,target.entityId);await delay(400);consoleCommand('tp LeashTarget 6 80 0');await delay(800);
+  assert(target.motion.some(p=>p.entityId===target.entityId&&p.velocity.x<0),'Target receives pull velocity toward holder');
+  consoleCommand('tp LeashTarget 12 80 0');await delay(400);
+  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Distance break removes proxy');
+  console.log('CLIENT pulling and distance break PASS');
+  consoleCommand('tp LeashOwner 0 80 0');consoleCommand('tp LeashTarget 1 80 0');
+  consoleCommand('clear LeashOwner');consoleCommand('give LeashOwner minecraft:lead 3');await delay(500);
+  click(owner,target.entityId);await delay(500);
+  let respawns=target.respawns;
+  consoleCommand('execute in minecraft:the_nether run tp LeashTarget 0 80 0');await delay(500);
+  assert.equal(target.respawns,respawns,'Bound target cannot change dimensions via command');
+  consoleCommand('setblock 2 80 0 minecraft:oak_fence');await delay(300);
+  owner.write('block_place',{hand:0,location:{x:2,y:80,z:0},direction:1,cursorX:0.5,cursorY:0.5,cursorZ:0.5,insideBlock:false,sequence:0});
+  await delay(500);
+  const knot=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.leash_knot.id);
+  assert(knot,'Fence transfer creates a vanilla knot');
+  const tied=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  assert(owner.leashes.some(l=>l.entityId===tied.entityId&&l.vehicleId===knot.entityId),'Proxy holder changes to fence knot');
+  click(target,knot.entityId);target.write('use_entity',{target:knot.entityId,mouse:1,sneaking:false});await delay(500);
+  assert(owner.entities.has(knot.entityId)&&owner.entities.has(tied.entityId),'Bound player cannot remove knot');
+  click(owner,knot.entityId);await delay(500);
+  assert(!owner.entities.has(tied.entityId),'Unbound player can remove knot and detach proxy');
+  console.log('CLIENT fence transfer, knot protection, dimension blocking PASS');
+  consoleCommand('setblock 2 80 0 minecraft:air');
+  if(process.env.LEASHIS_TEST_CONFIG) {
+    const fs=require('node:fs');
+    fs.writeFileSync(process.env.LEASHIS_TEST_CONFIG,'enabled: true\ndistanceMin: 4\ndistanceMax: 20\nallowLeashedRemoveFenceKnot: false\n');
+    consoleCommand('leashis reload');consoleCommand('clear LeashOwner');consoleCommand('give LeashOwner minecraft:lead 3');await delay(500);
+    click(owner,target.entityId);await delay(300);consoleCommand('tp LeashTarget 12 80 0');await delay(700);
+    assert([...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Configured range survives vanilla fixed leash range');
+    consoleCommand('tp LeashTarget 21 80 0');await delay(500);
+    assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Configured maximum still breaks correctly');
+    consoleCommand('tp LeashTarget 1 80 0');
+    fs.writeFileSync(process.env.LEASHIS_TEST_CONFIG,'enabled: true\ndistanceMin: 4\ndistanceMax: 10\nallowLeashedRemoveFenceKnot: false\n');consoleCommand('leashis reload');await delay(300);
+    console.log('CLIENT custom distance maximum and reload PASS');
+  }
+  consoleCommand('clear LeashOwner');consoleCommand('give LeashOwner minecraft:lead 3');await delay(500);
+  click(owner,target.entityId);await delay(500);
+  assert([...target.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Session exists before holder logout');
+  owner.end();await delay(700);
+  assert(![...target.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Holder logout removes every proxy');
+  console.log('CLIENT holder logout cleanup PASS');
+  assert(!failure,'No protocol errors');
+ } finally {owner.end();target.end();await delay(200)}
+})().then(()=>{console.log('CLIENT ALL REGRESSIONS PASSED');process.exit(0)},e=>{console.error(e);process.exit(1)});

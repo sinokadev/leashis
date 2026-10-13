@@ -1,0 +1,246 @@
+{
+  "date": "2026-10-14",
+  "bukkit": {
+    "passed": true,
+    "minecraft": [
+      "1.20",
+      "26.3"
+    ],
+    "api": "Spigot 1.20",
+    "java": 17
+  },
+  "fabric": {
+    "1.20": {
+      "passed": true,
+      "seconds": 7,
+      "log": "build/matrix/fabric-1.20.log"
+    },
+    "1.20.1": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.20.1.log"
+    },
+    "1.20.2": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.20.2.log"
+    },
+    "1.20.3": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.20.3.log"
+    },
+    "1.20.4": {
+      "passed": true,
+      "seconds": 3,
+      "log": "build/matrix/fabric-1.20.4.log"
+    },
+    "1.20.5": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.20.5.log"
+    },
+    "1.20.6": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.20.6.log"
+    },
+    "1.21": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.21.log"
+    },
+    "1.21.1": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.21.1.log"
+    },
+    "1.21.2": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.21.2.log"
+    },
+    "1.21.3": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.21.3.log"
+    },
+    "1.21.4": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.21.4.log"
+    },
+    "1.21.5": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.21.5.log"
+    },
+    "1.21.6": {
+      "passed": true,
+      "seconds": 3,
+      "log": "build/matrix/fabric-1.21.6.log"
+    },
+    "1.21.7": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.21.7.log"
+    },
+    "1.21.8": {
+      "passed": true,
+      "seconds": 3,
+      "log": "build/matrix/fabric-1.21.8.log"
+    },
+    "1.21.9": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.21.9.log"
+    },
+    "1.21.10": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.21.10.log"
+    },
+    "1.21.11": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/fabric-1.21.11.log"
+    },
+    "26.1": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/fabric-26.1.log"
+    },
+    "26.1.1": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/fabric-26.1.1.log"
+    },
+    "26.1.2": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/fabric-26.1.2.log"
+    },
+    "26.2": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/fabric-26.2.log"
+    },
+    "26.3": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/fabric-26.3.log"
+    }
+  },
+  "neoforge": {
+    "1.20.2": {
+      "passed": true,
+      "seconds": 7,
+      "log": "build/matrix/neoforge-1.20.2.log"
+    },
+    "1.20.3": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/neoforge-1.20.3.log"
+    },
+    "1.20.4": {
+      "passed": true,
+      "seconds": 5,
+      "log": "build/matrix/neoforge-1.20.4.log"
+    },
+    "1.20.5": {
+      "passed": true,
+      "seconds": 4,
+      "log": "build/matrix/neoforge-1.20.5.log"
+    },
+    "1.20.6": {
+      "passed": true,
+      "seconds": 5,
+      "log": "build/matrix/neoforge-1.20.6.log"
+    },
+    "1.21": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-1.21.log"
+    },
+    "1.21.1": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-1.21.1.log"
+    },
+    "1.21.2": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-1.21.2.log"
+    },
+    "1.21.3": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-1.21.3.log"
+    },
+    "1.21.4": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-1.21.4.log"
+    },
+    "1.21.5": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-1.21.5.log"
+    },
+    "1.21.6": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-1.21.6.log"
+    },
+    "1.21.7": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-1.21.7.log"
+    },
+    "1.21.8": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-1.21.8.log"
+    },
+    "1.21.9": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-1.21.9.log"
+    },
+    "1.21.10": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-1.21.10.log"
+    },
+    "1.21.11": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-1.21.11.log"
+    },
+    "26.1": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-26.1.log"
+    },
+    "26.1.1": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-26.1.1.log"
+    },
+    "26.1.2": {
+      "passed": true,
+      "seconds": 2,
+      "log": "build/matrix/neoforge-26.1.2.log"
+    },
+    "26.2": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-26.2.log"
+    },
+    "26.3": {
+      "passed": true,
+      "seconds": 1,
+      "log": "build/matrix/neoforge-26.3.log"
+    }
+  }
+}

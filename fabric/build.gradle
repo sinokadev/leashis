@@ -1,0 +1,38 @@
+buildscript {
+    repositories { maven { url = 'https://maven.fabricmc.net/' }; mavenCentral(); gradlePluginPortal() }
+    dependencies { classpath 'net.fabricmc:fabric-loom:1.17.21' }
+}
+def mc = providers.gradleProperty('mc').orElse('1.21.1').get()
+def spec = new groovy.json.JsonSlurper().parse(rootProject.file('versions.json'))[mc]
+if (spec == null) throw new GradleException("Unknown Minecraft target: $mc")
+def modern = mc.startsWith('26.')
+apply plugin: modern ? 'net.fabricmc.fabric-loom' : 'net.fabricmc.fabric-loom-remap'
+layout.buildDirectory = file("build/$mc")
+java { toolchain.languageVersion = JavaLanguageVersion.of(spec.java as int) }
+base { archivesName = "leashis-fabric-$mc" }
+dependencies {
+    minecraft "com.mojang:minecraft:$mc"
+    if (!modern) mappings loom.officialMojangMappings()
+    add(modern ? 'implementation' : 'modImplementation', 'net.fabricmc:fabric-loader:0.19.5')
+    add(modern ? 'implementation' : 'modImplementation', "net.fabricmc.fabric-api:fabric-api:${spec.fabricApi}")
+}
+def generated = layout.buildDirectory.dir('generated/java')
+def generate = tasks.register('generateVersionSources', Exec) {
+    inputs.dir rootProject.file('mod-common/src/main/java')
+    inputs.file file('src/main/java/dev/sinoka/leashis/fabric/mixin/DimensionMixin.java')
+    inputs.file rootProject.file('tools/generate_mod_sources.py')
+    inputs.property 'minecraft', mc
+    outputs.dir generated
+    commandLine 'python3', rootProject.file('tools/generate_mod_sources.py'), mc, 'fabric', generated.get().asFile
+}
+sourceSets.main.java {
+    setSrcDirs(['src/main/java', '../core/src/main/java', generated])
+    exclude { it.file == file('src/main/java/dev/sinoka/leashis/fabric/mixin/DimensionMixin.java') }
+}
+tasks.named('compileJava') { dependsOn generate }
+processResources {
+    inputs.properties(version: project.version, minecraft: mc, java: spec.java)
+    filesMatching('fabric.mod.json') { expand(version: project.version, minecraft: mc, java: spec.java) }
+    filesMatching('leashis.fabric.mixins.json') { expand(java: spec.java) }
+}
+loom { runs { server { server(); runDir "run/$mc" } } }

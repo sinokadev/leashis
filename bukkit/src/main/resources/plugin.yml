@@ -1,0 +1,14 @@
+name: Leashis
+version: '${version}'
+main: dev.sinoka.leashis.bukkit.LeashisPlugin
+api-version: '1.20'
+author: SinokaDev
+description: Server-side player leashes
+commands:
+  leashis:
+    description: Reload Leashis configuration
+    usage: /leashis reload
+    permission: leashis.admin
+permissions:
+  leashis.admin:
+    default: op
