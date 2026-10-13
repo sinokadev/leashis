@@ -126,3 +126,7 @@ python3 tools/smoke_server.py --loader fabric --mc 1.20.1 \
 [pog5/mc-leashplayers](https://github.com/pog5/mc-leashplayers)의 바닐라 프록시 접근과 멀티플랫폼 구조를 참고했습니다.
 참고 프로젝트의 MIT 고지는 `licenses/mc-leashplayers-MIT.txt`에 보존했습니다.
 기존 NeoForge MDK의 `TEMPLATE_LICENSE.txt`도 보존했습니다.
+
+## Development acknowledgment
+
+Most of the functionality in this project was implemented by ChatGPT.
