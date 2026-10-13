@@ -3,6 +3,7 @@
   "id": "leashis",
   "version": "${version}",
   "name": "Leashis",
+  "license": "Unlicense",
   "environment": "server",
   "entrypoints": { "server": ["dev.sinoka.leashis.fabric.LeashisFabric"] },
   "mixins": ["leashis.fabric.mixins.json"],

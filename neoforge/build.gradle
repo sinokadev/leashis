@@ -39,7 +39,7 @@ tasks.named('compileJava') { dependsOn generate }
 def metadata = tasks.register('generateModMetadata', ProcessResources) {
     inputs.properties(version: project.version, minecraft: mc, neoforge: spec.neoForge)
     expand(mod_version: project.version, minecraft_version_range: "[$mc]", neo_version: spec.neoForge,
-           loader_version_range: '[1,)', mod_id: 'leashis', mod_name: 'Leashis', mod_license: 'All Rights Reserved')
+           loader_version_range: '[1,)', mod_id: 'leashis', mod_name: 'Leashis', mod_license: providers.gradleProperty('mod_license').get())
     from 'src/main/templates'
     if (mc in ['1.20.2', '1.20.3', '1.20.4']) rename 'neoforge.mods.toml', 'mods.toml'
     into layout.buildDirectory.dir('generated/resources')

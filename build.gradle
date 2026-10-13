@@ -3,6 +3,14 @@ allprojects {
     group = 'dev.sinoka.leashis'
     version = '2.0.0'
     repositories { mavenCentral() }
+    tasks.withType(org.gradle.jvm.tasks.Jar).configureEach {
+        // Fabric remap tasks inherit these files from their input JAR.
+        if (name == 'jar' || name == 'sourcesJar') {
+            from(rootProject.file('LICENSE'))
+            from(rootProject.file('TEMPLATE_LICENSE.txt'))
+            from(rootProject.file('licenses')) { into 'licenses' }
+        }
+    }
 }
 tasks.named('build') { dependsOn subprojects.collect { it.path + ':build' } }
 if (findProject(':neoforge') != null) {

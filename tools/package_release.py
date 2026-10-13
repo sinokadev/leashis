@@ -38,6 +38,7 @@ for loader in ['fabric','neoforge']:
 shutil.copy2(root/'README.md',dist/'README.md');shutil.copy2(root/'versions.json',dist/'versions.json')
 shutil.copytree(root/'licenses',dist/'licenses',dirs_exist_ok=True)
 shutil.copy2(root/'TEMPLATE_LICENSE.txt',dist/'TEMPLATE_LICENSE.txt')
+shutil.copy2(root/'LICENSE',dist/'LICENSE')
 shutil.copytree(root/'docs',dist/'docs',dirs_exist_ok=True)
 bundle=dist/f'leashis-{version}-all-platforms.zip'
 with zipfile.ZipFile(bundle,'w',zipfile.ZIP_DEFLATED) as z:

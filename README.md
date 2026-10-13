@@ -1,6 +1,6 @@
 # Leashis
 
-> **Notice: This is a very, very AI slop project. Most of its functionality was implemented by ChatGPT.**
+> **Notice: This is a very, very AI slop project. ChatGPT implemented this project from start to finish. The human only provided instructions.**
 
 A **server-only** plugin and mod that lets you leash other players.
 Bukkit (CraftBukkit), Spigot, Paper, Fabric, and NeoForge share the same connection rules and pulling engine.
@@ -131,4 +131,9 @@ The original NeoForge MDK's `TEMPLATE_LICENSE.txt` is also preserved.
 
 ## Development acknowledgment
 
-Most of the functionality in this project was implemented by ChatGPT.
+ChatGPT implemented this project from start to finish. The human only provided instructions.
+
+## License
+
+This project is released under [The Unlicense](LICENSE).
+The reference project and NeoForge MDK retain their original MIT notices in `licenses/mc-leashplayers-MIT.txt` and `TEMPLATE_LICENSE.txt`.
