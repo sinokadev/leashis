@@ -2,6 +2,10 @@
 
 > **Notice: This is a very, very AI slop project. ChatGPT implemented this project from start to finish. The human only provided instructions.**
 
+This is a casual, prompt-and-click AI slop project I had ChatGPT build for me and my friends.
+Issues and pull requests are welcome. Please keep feedback constructive and focused on specific bugs, improvements, or licensing concerns.
+Please do not insult the project or its contributors, or complain solely because it is AI slop.
+
 A **server-only** plugin and mod that lets you leash other players.
 Bukkit (CraftBukkit), Spigot, Paper, Fabric, and NeoForge share the same connection rules and pulling engine.
 No client mods or resource packs are required. An invisible vanilla baby turtle provides the leash rendering;
@@ -135,5 +139,12 @@ ChatGPT implemented this project from start to finish. The human only provided i
 
 ## License
 
-This project is released under [The Unlicense](LICENSE).
-The reference project and NeoForge MDK retain their original MIT notices in `licenses/mc-leashplayers-MIT.txt` and `TEMPLATE_LICENSE.txt`.
+Except for third-party material, this project is released under [The Unlicense](LICENSE).
+It was inspired by the MIT-licensed [pog5/mc-leashplayers](https://github.com/pog5/mc-leashplayers) project and uses the NeoForge MDK template.
+The exact boundaries between original implementation and any code copied or adapted from these sources have not been fully audited.
+Do not assume that every file or line is covered exclusively by the Unlicense.
+
+Any third-party MIT material remains subject to its applicable copyright and permission notices; the Unlicense does not remove those requirements.
+The original notices are preserved in `licenses/mc-leashplayers-MIT.txt` and `TEMPLATE_LICENSE.txt`.
+If you reuse, modify, or redistribute this project's source code, review the relevant origins and licenses, preserve applicable notices, and take care to meet your legal obligations.
+This notice is not a guarantee that every licensing issue has been identified or resolved.
