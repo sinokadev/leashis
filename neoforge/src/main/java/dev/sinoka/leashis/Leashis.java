@@ -11,12 +11,14 @@ import org.slf4j.Logger;
 
 @Mod(Leashis.MODID)
 public final class Leashis {
+    public static LeashManager manager;
     public static final String MODID = "leashis";
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public Leashis(ModContainer container) {
         container.registerConfig(ModConfig.Type.SERVER, Config.SPEC, "leashis-server.toml");
-        NeoForge.EVENT_BUS.register(new LeashEvents(new LeashManager()));
+        manager = new LeashManager();
+        NeoForge.EVENT_BUS.register(new LeashEvents(manager));
         LOGGER.info("Leashis initialized");
     }
 }

@@ -5,7 +5,19 @@
   "name": "Leashis",
   "license": "Unlicense",
   "environment": "server",
-  "entrypoints": { "server": ["dev.sinoka.leashis.fabric.LeashisFabric"] },
-  "mixins": ["leashis.fabric.mixins.json"],
-  "depends": { "fabricloader": ">=0.16.0", "minecraft": "${minecraft}", "java": ">=${java}", "fabric-api": "*" }
+  "entrypoints": {
+    "server": [
+      "dev.sinoka.leashis.fabric.LeashisFabric"
+    ]
+  },
+  "mixins": [
+    "leashis.fabric.mixins.json",
+    "leashis.piston.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "${minecraft}",
+    "java": ">=${java}",
+    "fabric-api": "*"
+  }
 }

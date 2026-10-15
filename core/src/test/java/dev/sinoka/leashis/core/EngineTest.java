@@ -97,7 +97,10 @@ public final class EngineTest {
         f=new Fixture(); assert f.attach(true); knot=UUID.randomUUID(); f.position(knot,3);
         f.holders.put(f.proxy(),knot); f.engine.logout(f.target);
         f.position(f.target,0); f.engine.resume(f.target);
-        assert knot.equals(f.holder(f.proxy())); f.engine.stop(); assert f.refunds==0;
+        assert knot.equals(f.holder(f.proxy()));
+        assert f.engine.holders().contains(knot);
+        f.engine.logout(f.target); assert f.engine.holders().contains(knot);
+        f.engine.stop(); assert f.refunds==0 && f.engine.holders().isEmpty();
         for (int reason=0;reason<5;reason++) {
             f=new Fixture(); assert f.attach(false); f.engine.logout(f.target);
             switch(reason) {

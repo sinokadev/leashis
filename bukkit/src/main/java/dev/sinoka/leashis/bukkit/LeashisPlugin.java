@@ -130,6 +130,22 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
             return;
         }
     }
+    private boolean protectsAnchor(org.bukkit.block.Block block) {
+        for (UUID holder : engine.holders()) {
+            Entity anchor = getServer().getEntity(holder);
+            if (anchor instanceof LeashHitch && anchor.getWorld().equals(block.getWorld())
+                    && anchor.getLocation().getBlock().equals(block)) return true;
+        }
+        return false;
+    }
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    public void onPistonExtend(org.bukkit.event.block.BlockPistonExtendEvent event) {
+        if (event.getBlocks().stream().anyMatch(this::protectsAnchor)) event.setCancelled(true);
+    }
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    public void onPistonRetract(org.bukkit.event.block.BlockPistonRetractEvent event) {
+        if (event.getBlocks().stream().anyMatch(this::protectsAnchor)) event.setCancelled(true);
+    }
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onLeash(PlayerLeashEntityEvent e) { if (marked(e.getEntity())) e.setCancelled(true); }
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)

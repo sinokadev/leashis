@@ -26,9 +26,9 @@ The [validation record](docs/VALIDATION.md) distinguishes build verification fro
 
 ## Installation
 
-- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.1.jar` in `plugins/`.
-- Fabric: put `leashis-fabric-<MC>-2.0.1.jar` and Fabric API matching your server version in `mods/`.
-- NeoForge: put `leashis-neoforge-<MC>-2.0.1.jar` matching your server version in `mods/`.
+- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.2.jar` in `plugins/`.
+- Fabric: put `leashis-fabric-<MC>-2.0.2.jar` and Fabric API matching your server version in `mods/`.
+- NeoForge: put `leashis-neoforge-<MC>-2.0.2.jar` matching your server version in `mods/`. The Minecraft 1.21.1 build supports NeoForge 21.1.257 or newer.
 
 Install only one Leashis JAR for your server's platform.
 The server runtime requires Java 17 or newer for 1.20–1.20.4, Java 21 or newer for 1.20.5–1.21.11,
@@ -45,7 +45,7 @@ In survival mode, a successful connection consumes one lead and returns it once 
 Connections started in creative mode neither consume nor return leads, even if the player's game mode changes afterward.
 You can leash multiple players at once, but you cannot take over an already leashed player.
 
-Players tied to a fence cannot break that fence block, including in creative mode. This block protection applies even when `allowLeashedRemoveFenceKnot` is enabled; unrelated fences and other players are unaffected.
+Players tied to a fence cannot break that fence block, including in creative mode. Occupied fence anchors cannot be moved by pistons, sticky pistons, or slime/honey structures, including while a disconnected target's leash is retained. Once all player connections to that fence are released, it can move again. This block protection applies even when `allowLeashedRemoveFenceKnot` is enabled; unrelated fences and other players are unaffected.
 Leashed players are blocked from right-clicking or directly attacking fence knots and from changing dimensions through portals or commands.
 By default, a leashed player reconnecting to the same running server keeps their connection, including fence attachments. The proxy is recreated on login without consuming or refunding another lead. Connections are cleaned up on death, holder logout, riding, spectator mode, disabling the feature, or a holder changing dimensions. Server restarts clear connections.
 A normal server shutdown returns consumed leads; connections do not survive a restart.

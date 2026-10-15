@@ -38,6 +38,16 @@ public final class LeashEngine {
     }
     public boolean isLeashed(UUID target) { return sessions.containsKey(target) || suspended.containsKey(target); }
     public Collection<Session> sessions() { return List.copyOf(sessions.values()); }
+    /** Includes anchors held while a target is disconnected. */
+    public Set<UUID> holders() {
+        Set<UUID> result = new HashSet<>();
+        for (Session session : sessions()) {
+            UUID holder = port.holder(session.proxy());
+            if (holder != null) result.add(holder);
+        }
+        for (Suspended saved : suspended.values()) if (saved.holder() != null) result.add(saved.holder());
+        return Set.copyOf(result);
+    }
     public boolean protectKnot(UUID actor) {
         return isLeashed(actor) && !settings.get().allowKnotRemoval();
     }

@@ -34,6 +34,14 @@ public final class LeashManager implements LeashEngine.Port {
         return session != null && session.holder() instanceof LeashFenceKnotEntity knot
                 && knot.level() == player.level() && knot.getPos().equals(pos);
     }
+    public boolean shouldProtectFence(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos) {
+        for (UUID holder : engine.holders()) {
+            Entity anchor = entities.get(holder);
+            if (anchor instanceof LeashFenceKnotEntity knot && knot.level() == level && knot.getPos().equals(pos))
+                return true;
+        }
+        return false;
+    }
     public boolean tryInteract(ServerPlayer actor, ServerPlayer target, InteractionHand hand) {
         remember(actor); remember(target);
         engine.advanceTo(actor.level().getGameTime());
