@@ -5,18 +5,18 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.animal.Turtle;
+import net.minecraft.world.entity.animal.Rabbit;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.Team;
 
 /** A transient vanilla entity supplies the leash renderer to unmodified clients. */
-public final class LeashProxyEntity extends Turtle {
+public final class LeashProxyEntity extends Rabbit {
     public static final String TEAM_NAME = "leashis_proxy";
     private final ServerPlayer target;
 
     public LeashProxyEntity(ServerPlayer target) {
-        super(EntityType.TURTLE, target.serverLevel());
+        super(EntityType.RABBIT, target.serverLevel());
         this.target = target;
         setBaby(true);
         setInvisible(true);

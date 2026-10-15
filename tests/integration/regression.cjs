@@ -65,8 +65,8 @@ function click(owner,id){
   await delay(1000);assert.equal(owner.itemCount,3,'Initial inventory');owner.items=[];
   click(owner,target.entityId);await delay(500);
   assert.equal(owner.itemCount,2,'Attach consumes one lead across both interaction packets');
-  const proxy=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
-  assert(proxy,'Vanilla turtle proxy is visible to vanilla protocol');
+  const proxy=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.rabbit.id);
+  assert(proxy,'Vanilla rabbit proxy is visible to vanilla protocol');
   assert(owner.leashes.some(l=>l.entityId===proxy.entityId && l.vehicleId===owner.entityId),'Leash packet attaches proxy to holder');
   await delay(1100);click(owner,target.entityId);await delay(500);
   assert(owner.removed.includes(proxy.entityId),'Manual release removes proxy');
@@ -84,7 +84,7 @@ function click(owner,id){
   click(owner,target.entityId);await delay(400);consoleCommand('tp LeashTarget 6 80 0');await delay(800);
   assert(target.motion.some(p=>p.entityId===target.entityId&&p.velocity.x<0),'Target receives pull velocity toward holder');
   consoleCommand('tp LeashTarget 12 80 0');await delay(400);
-  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Distance break removes proxy');
+  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.rabbit.id),'Distance break removes proxy');
   console.log('CLIENT pulling and distance break PASS');
   consoleCommand('tp LeashOwner 0 80 0');consoleCommand('tp LeashTarget 1 80 0');
   consoleCommand('clear LeashOwner');consoleCommand('give LeashOwner minecraft:lead 3');await delay(500);
@@ -98,7 +98,7 @@ function click(owner,id){
   await delay(500);
   const knot=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.leash_knot.id);
   assert(knot,'Fence transfer creates a vanilla knot');
-  let tied=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  let tied=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.rabbit.id);
   assert(owner.leashes.some(l=>l.entityId===tied.entityId&&l.vehicleId===knot.entityId),'Proxy holder changes to fence knot');
   // Death must not consume/refund the lead or overwrite the player's real spawn.
   consoleCommand('spawnpoint LeashTarget 10 80 10');consoleCommand('clear LeashTarget');
@@ -110,7 +110,7 @@ function click(owner,id){
   for(let i=0;i<100&&target.respawns===deathRespawns;i++)await delay(100);
   assert(target.respawns>deathRespawns,'Fence target respawns');await delay(700);
   assert(Math.abs(target.position.x-2.5)<4&&Math.abs(target.position.z-0.5)<4,'Fence target respawns near anchor');
-  let deathProxy=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  let deathProxy=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.rabbit.id);
   assert(deathProxy&&owner.leashes.some(l=>l.entityId===deathProxy.entityId&&l.vehicleId===knot.entityId),'Fence death restores same knot');
   assert.equal(owner.items.length,drops,'Fence respawn does not refund or mint lead');
   assert.equal(owner.itemCount,2,'Fence respawn does not consume another lead');
@@ -123,7 +123,7 @@ function click(owner,id){
   for(let i=0;i<100&&target.respawns===deathRespawns;i++)await delay(100);
   assert(target.respawns>deathRespawns,'Cross-dimension fence target respawns');await delay(900);
   assert(Math.abs(target.position.x-2.5)<4&&Math.abs(target.position.z-0.5)<4,'Other-dimension spawn returns to anchor');
-  deathProxy=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  deathProxy=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.rabbit.id);
   assert(deathProxy&&owner.leashes.some(l=>l.entityId===deathProxy.entityId&&l.vehicleId===knot.entityId),'Cross-dimension death restores fence holder');
   assert.equal(owner.items.length,drops,'Repeated death does not refund or duplicate lead');
   consoleCommand('spawnpoint LeashTarget 10 80 10');
@@ -169,7 +169,7 @@ function click(owner,id){
   target=connect('LeashTarget');
   for(let i=0;i<100&&!target.position;i++)await delay(100);
   assert(target.position,'Fence target rejoins');await delay(700);
-  const restored=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  const restored=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.rabbit.id);
   assert(restored,'Fence proxy is restored after target reconnect');
   assert(owner.leashes.some(l=>l.entityId===restored.entityId&&l.vehicleId===knot.entityId),'Reconnect preserves fence holder');
   assert.equal(owner.items.length,drops,'Fence reconnect does not refund a lead');
@@ -193,7 +193,7 @@ function click(owner,id){
   for(let i=0;i<100&&target.respawns===deathRespawns;i++)await delay(100);
   assert(target.respawns>deathRespawns,'Unbound target respawns');await delay(700);
   assert(Math.abs(target.position.x-10.5)<2&&Math.abs(target.position.z-10.5)<2,'Unbound death uses original saved spawn');
-  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Unbound death does not recreate leash');
+  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.rabbit.id),'Unbound death does not recreate leash');
   consoleCommand('tp LeashTarget 1 80 0');await delay(300);
   console.log('CLIENT unbound death restores original spawn PASS');
   // Turning death retention off must restore normal death release and spawning.
@@ -203,7 +203,7 @@ function click(owner,id){
   click(owner,target.entityId);await delay(500);
   owner.write('block_place',{hand:0,location:{x:2,y:80,z:0},direction:1,cursorX:0.5,cursorY:0.5,cursorZ:0.5,insideBlock:false,sequence:4});
   await delay(500);
-  const disabledProxy=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  const disabledProxy=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.rabbit.id);
   assert(disabledProxy,'Death policy fixture has a proxy');
   assert(owner.leashes.some(l=>l.entityId===disabledProxy.entityId&&l.vehicleId!==owner.entityId&&l.vehicleId>=0),'Death policy fixture is tied to fence');
   consoleCommand('leashis death false');consoleCommand('leashis death');await delay(300);
@@ -214,7 +214,7 @@ function click(owner,id){
   for(let i=0;i<100&&target.respawns===deathRespawns;i++)await delay(100);
   assert(target.respawns>deathRespawns,'Death policy false respawns normally');await delay(700);
   assert(Math.abs(target.position.x-10.5)<2&&Math.abs(target.position.z-10.5)<2,'Death policy false uses saved spawn even when tied to fence');
-  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Death policy false does not restore leash');
+  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.rabbit.id),'Death policy false does not restore leash');
   consoleCommand('tp LeashTarget 1 80 0');consoleCommand('setblock 2 80 0 minecraft:air');await delay(300);
   console.log('CLIENT death command true/false and normal spawn policy PASS');
   if(process.env.LEASHIS_TEST_CONFIG) {
@@ -222,9 +222,9 @@ function click(owner,id){
     fs.writeFileSync(process.env.LEASHIS_TEST_CONFIG,'enabled: true\ndistanceMin: 4\ndistanceMax: 20\nallowLeashedRemoveFenceKnot: false\n');
     consoleCommand('leashis reload');consoleCommand('clear LeashOwner');consoleCommand('give LeashOwner minecraft:lead 3');await delay(500);
     click(owner,target.entityId);await delay(300);consoleCommand('tp LeashTarget 12 80 0');await delay(700);
-    assert([...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Configured range survives vanilla fixed leash range');
+    assert([...owner.entities.values()].some(e=>e.type===data.entitiesByName.rabbit.id),'Configured range survives vanilla fixed leash range');
     consoleCommand('tp LeashTarget 21 80 0');await delay(500);
-    assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Configured maximum still breaks correctly');
+    assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.rabbit.id),'Configured maximum still breaks correctly');
     consoleCommand('tp LeashTarget 1 80 0');
     fs.writeFileSync(process.env.LEASHIS_TEST_CONFIG,'enabled: true\ndistanceMin: 4\ndistanceMax: 10\nallowLeashedRemoveFenceKnot: false\n');consoleCommand('leashis reload');await delay(300);
     console.log('CLIENT custom distance maximum and reload PASS');
@@ -233,12 +233,12 @@ function click(owner,id){
   click(owner,target.entityId);await delay(500);
   count=owner.itemCount;drops=owner.items.length;
   target.end();await delay(700);
-  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Target logout removes old proxy');
+  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.rabbit.id),'Target logout removes old proxy');
   assert.equal(owner.items.length,drops,'Target logout does not refund a lead');
   target=connect('LeashTarget');
   for(let i=0;i<100&&!target.position;i++)await delay(100);
   assert(target.position,'Held target rejoins');await delay(700);
-  const rejoined=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  const rejoined=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.rabbit.id);
   assert(rejoined,'Proxy restored after target reconnect');
   assert(owner.leashes.some(l=>l.entityId===rejoined.entityId&&l.vehicleId===owner.entityId),'Reconnect restores player holder');
   assert.equal(owner.itemCount,count,'Reconnect does not consume another lead');
@@ -247,17 +247,17 @@ function click(owner,id){
   consoleCommand('leashis reconnect false');await delay(300);
   drops=owner.items.length;target.end();await delay(700);
   assert.equal(owner.items.length,drops+1,'Disabled reconnect retention refunds exactly one lead');
-  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Disabled retention removes proxy');
+  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.rabbit.id),'Disabled retention removes proxy');
   target=connect('LeashTarget');
   for(let i=0;i<100&&!target.position;i++)await delay(100);
   assert(target.position,'Released target rejoins');await delay(700);
-  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Disabled retention does not restore proxy');
+  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.rabbit.id),'Disabled retention does not restore proxy');
   console.log('CLIENT reconnect command true/false policy PASS');
   consoleCommand('clear LeashOwner');consoleCommand('give LeashOwner minecraft:lead 3');await delay(500);
   click(owner,target.entityId);await delay(500);
-  assert([...target.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Session exists before holder logout');
+  assert([...target.entities.values()].some(e=>e.type===data.entitiesByName.rabbit.id),'Session exists before holder logout');
   owner.end();await delay(700);
-  assert(![...target.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Holder logout removes every proxy');
+  assert(![...target.entities.values()].some(e=>e.type===data.entitiesByName.rabbit.id),'Holder logout removes every proxy');
   console.log('CLIENT holder logout cleanup PASS');
   assert(!failure,'No protocol errors');
  } finally {owner.end();target.end();await delay(200)}

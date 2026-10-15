@@ -25,9 +25,9 @@ for file in (root/'mod-common/src/main/java').rglob('*.java'):
   if at('1.21.4'):
    s=re.sub(r'    @Override\n    public void dropLeash\(.*?\n    \}', '    @Override\n    public void dropLeash() { super.removeLeash(); }', s, flags=re.S)
    s=s.replace('dropLeash((net.minecraft.server.level.ServerLevel)level(), true, false);','removeLeash();').replace('dropLeash(true, false);','removeLeash();')
-  if at('26.2'):s=s.replace('EntityType.TURTLE','net.minecraft.world.entity.EntityTypes.TURTLE')
+  if at('26.2'):s=s.replace('EntityType.RABBIT','net.minecraft.world.entity.EntityTypes.RABBIT')
   if at('26.3'):s=s.replace('setInvulnerable(true)','setPermanentlyInvulnerable(true)')
-  if at('1.21.11'):s=s.replace('net.minecraft.world.entity.animal.Turtle','net.minecraft.world.entity.animal.turtle.Turtle')
+  if at('1.21.11'):s=s.replace('net.minecraft.world.entity.animal.Rabbit','net.minecraft.world.entity.animal.rabbit.Rabbit')
  if file.name=='PistonMixin.java' and a.loader=='fabric':
   s=s.replace('import dev.sinoka.leashis.Leashis;', 'import dev.sinoka.leashis.fabric.LeashisFabric;').replace('Leashis.manager', 'LeashisFabric.manager')
  if file.name=='LeashCommands.java' and at('1.21.11'):

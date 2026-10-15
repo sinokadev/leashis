@@ -8,7 +8,7 @@ Please do not insult the project or its contributors, or complain solely because
 
 A **server-only** plugin and mod that lets you leash other players.
 Bukkit (CraftBukkit), Spigot, Paper, Fabric, and NeoForge share the same connection rules and pulling engine.
-No client mods or resource packs are required. An invisible vanilla baby turtle provides the leash rendering;
+No client mods or resource packs are required. An invisible vanilla baby rabbit provides the leash rendering;
 the project registers no new items, entity types, or required custom network channels.
 
 ## Supported versions
@@ -26,9 +26,9 @@ The [validation record](docs/VALIDATION.md) distinguishes build verification fro
 
 ## Installation
 
-- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.3.jar` in `plugins/`.
-- Fabric: put `leashis-fabric-<MC>-2.0.3.jar` and Fabric API matching your server version in `mods/`.
-- NeoForge: put `leashis-neoforge-<MC>-2.0.3.jar` matching your server version in `mods/`. The Minecraft 1.21.1 build supports NeoForge 21.1.257 or newer.
+- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.4.jar` in `plugins/`.
+- Fabric: put `leashis-fabric-<MC>-2.0.4.jar` and Fabric API matching your server version in `mods/`.
+- NeoForge: put `leashis-neoforge-<MC>-2.0.4.jar` matching your server version in `mods/`. The Minecraft 1.21.1 build supports NeoForge 21.1.257 or newer.
 
 Install only one Leashis JAR for your server's platform.
 The server runtime requires Java 17 or newer for 1.20–1.20.4, Java 21 or newer for 1.20.5–1.21.11,

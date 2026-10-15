@@ -77,6 +77,10 @@ public final class LeashGameTests {
             var session = f.manager.getSession(f.target.getUUID());
             helper.assertTrue(session != null && session.holder() == f.holder, "Holder must match");
             helper.assertTrue(session.proxy().isInvisible() && session.proxy().isBaby(), "Proxy must be invisible and small");
+            helper.assertTrue(session.proxy().getType() == net.minecraft.world.entity.EntityType.RABBIT,
+                    "Proxy must use vanilla rabbit client dimensions");
+            helper.assertTrue(session.proxy().getBbWidth() <= 0.21F && session.proxy().getBbHeight() <= 0.26F,
+                    "Baby rabbit hitbox must stay within 0.2 by 0.25 blocks");
             helper.assertTrue(f.connect(), "Duplicate packet should be consumed");
             helper.assertTrue(f.holder.getMainHandItem().getCount() == 2, "Consume exactly one lead");
             f.manager.detach(f.target.getUUID(), DetachReason.MANUAL);
@@ -249,7 +253,7 @@ public final class LeashGameTests {
         try {
             f.connect();
             var proxy = f.manager.getSession(f.target.getUUID()).proxy();
-            helper.assertTrue(!proxy.shouldBeSaved() && !proxy.save(new CompoundTag()), "Never persist a ghost turtle");
+            helper.assertTrue(!proxy.shouldBeSaved() && !proxy.save(new CompoundTag()), "Never persist a ghost rabbit");
             var travel = new EntityTravelToDimensionEvent(f.target, Level.NETHER);
             new LeashEvents(f.manager).onDimensionTravel(travel);
             helper.assertTrue(travel.isCanceled(), "Block bound-player dimension travel");

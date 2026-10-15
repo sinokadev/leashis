@@ -1,7 +1,7 @@
 plugins { id 'base' }
 allprojects {
     group = 'dev.sinoka.leashis'
-    version = '2.0.3'
+    version = '2.0.4'
     repositories { mavenCentral() }
     tasks.withType(org.gradle.jvm.tasks.Jar).configureEach {
         // Fabric remap tasks inherit these files from their input JAR.

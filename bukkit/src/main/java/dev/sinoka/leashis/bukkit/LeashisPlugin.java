@@ -17,7 +17,7 @@ import org.bukkit.util.Vector;
 
 /** Uses only the Bukkit 1.20 API; no CraftBukkit internals or packet-library dependency. */
 public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEngine.Port {
-    private final Map<UUID, Turtle> proxies = new HashMap<>();
+    private final Map<UUID, Rabbit> proxies = new HashMap<>();
     private final Map<UUID, UUID> targets = new HashMap<>();
     private final Map<UUID, Entity> leashHolders = new HashMap<>();
     private final Set<UUID> restoringRespawns = new HashSet<>();
@@ -156,7 +156,7 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     @EventHandler public void onNativeUnleash(EntityUnleashEvent e) {
         UUID id = e.getEntity().getUniqueId();
         if (!proxies.containsKey(id) || e.getReason() != EntityUnleashEvent.UnleashReason.DISTANCE) return;
-        Turtle proxy = proxies.get(id);
+        Rabbit proxy = proxies.get(id);
         if (proxy.isLeashed()) leashHolders.put(id, proxy.getLeashHolder());
         // Vanilla uses its own fixed leash range. The common engine owns the configurable range.
         distanceUnlinks.add(id);
@@ -248,9 +248,9 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
         Player target = getServer().getPlayer(targetId);
         Entity holder = getServer().getEntity(holderId);
         if (target == null || holder == null) return null;
-        Turtle proxy = target.getWorld().spawn(neck(target), Turtle.class, t -> {
+        Rabbit proxy = target.getWorld().spawn(neck(target), Rabbit.class, t -> {
             t.getPersistentDataContainer().set(proxyKey, PersistentDataType.BYTE, (byte)1);
-            t.setBaby(); t.setInvisible(true); t.setInvulnerable(true); t.setAI(false);
+            t.setBaby(); t.setAgeLock(true); t.setInvisible(true); t.setInvulnerable(true); t.setAI(false);
             t.setSilent(true); t.setGravity(false); t.setCollidable(false); t.setPersistent(false);
             t.setRemoveWhenFarAway(false);
         });
@@ -259,9 +259,9 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
         leashHolders.put(proxy.getUniqueId(), holder);
         return proxy.getUniqueId();
     }
-    @Override public boolean proxyValid(UUID id) { Turtle p = proxies.get(id); return p != null && p.isValid(); }
+    @Override public boolean proxyValid(UUID id) { Rabbit p = proxies.get(id); return p != null && p.isValid(); }
     @Override public UUID holder(UUID id) {
-        Turtle p = proxies.get(id);
+        Rabbit p = proxies.get(id);
         if (p == null) return null;
         if (p.isLeashed()) {
             Entity holder = p.getLeashHolder(); leashHolders.put(id, holder); return holder.getUniqueId();
@@ -272,20 +272,20 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     @Override public void follow(UUID proxy, UUID target) {
         Player p = getServer().getPlayer(target);
         if (p != null) {
-            Turtle turtle = proxies.get(proxy);
-            turtle.teleport(neck(p)); turtle.setVelocity(new Vector());
-            if (distanceUnlinks.remove(proxy) && !turtle.isLeashed()) {
+            Rabbit rabbit = proxies.get(proxy);
+            rabbit.teleport(neck(p)); rabbit.setVelocity(new Vector());
+            if (distanceUnlinks.remove(proxy) && !rabbit.isLeashed()) {
                 Entity holder = leashHolders.get(proxy);
-                if (holder != null && holder.isValid()) turtle.setLeashHolder(holder);
+                if (holder != null && holder.isValid()) rabbit.setLeashHolder(holder);
             }
         }
     }
     @Override public void suspendProxy(UUID id) {
-        Turtle proxy = proxies.get(id);
+        Rabbit proxy = proxies.get(id);
         if (proxy != null) { proxy.setLeashHolder(null); proxy.remove(); }
     }
     @Override public void removeProxy(UUID id) {
-        Turtle proxy = proxies.remove(id); targets.remove(id); leashHolders.remove(id); distanceUnlinks.remove(id);
+        Rabbit proxy = proxies.remove(id); targets.remove(id); leashHolders.remove(id); distanceUnlinks.remove(id);
         if (proxy != null) { proxy.setLeashHolder(null); proxy.remove(); }
     }
     @Override public void refund(UUID target, UUID proxy) {
