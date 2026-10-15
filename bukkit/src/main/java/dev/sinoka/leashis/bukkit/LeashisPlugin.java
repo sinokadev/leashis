@@ -20,6 +20,7 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     private final Map<UUID, Turtle> proxies = new HashMap<>();
     private final Map<UUID, UUID> targets = new HashMap<>();
     private final Map<UUID, Entity> leashHolders = new HashMap<>();
+    private final Set<UUID> restoringRespawns = new HashSet<>();
     private final Set<UUID> distanceUnlinks = new HashSet<>();
     private NamespacedKey proxyKey;
     private LeashEngine engine;
@@ -39,18 +40,20 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
         settings = new Settings(getConfig().getBoolean("enabled", true),
                 getConfig().getInt("distanceMin", 4), getConfig().getInt("distanceMax", 10),
                 getConfig().getBoolean("allowLeashedRemoveFenceKnot", false),
-                getConfig().getBoolean("keepOnLogout", true));
+                getConfig().getBoolean("keepOnLogout", true), getConfig().getBoolean("keepOnDeath", true));
     }
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.hasPermission("leashis.admin")) { sender.sendMessage("이 명령어를 사용할 권한이 없습니다."); return true; }
-        if (args.length >= 1 && args[0].equalsIgnoreCase("reconnect")) {
+        if (args.length >= 1 && (args[0].equalsIgnoreCase("reconnect") || args[0].equalsIgnoreCase("death"))) {
+            boolean death = args[0].equalsIgnoreCase("death");
             if (args.length > 2) return false;
             if (args.length == 2) {
                 if (!args[1].equalsIgnoreCase("true") && !args[1].equalsIgnoreCase("false")) return false;
-                getConfig().set("keepOnLogout", Boolean.parseBoolean(args[1]));
+                getConfig().set(death ? "keepOnDeath" : "keepOnLogout", Boolean.parseBoolean(args[1]));
                 saveConfig(); loadSettings(); engine.tick();
             }
-            sender.sendMessage("재접속 시 묶임 유지: " + (settings.keepOnLogout() ? "켜짐 (true)" : "꺼짐 (false)"));
+            sender.sendMessage((death ? "사망 시 울타리 묶임 유지: " : "재접속 시 묶임 유지: ")
+                    + ((death ? settings.keepOnDeath() : settings.keepOnLogout()) ? "켜짐 (true)" : "꺼짐 (false)"));
             return true;
         }
         if (args.length != 1 || !args[0].equalsIgnoreCase("reload")) return false;
@@ -58,8 +61,8 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     }
     @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (!sender.hasPermission("leashis.admin")) return List.of();
-        List<String> options = args.length == 1 ? List.of("reload", "reconnect")
-                : args.length == 2 && args[0].equalsIgnoreCase("reconnect") ? List.of("true", "false") : List.of();
+        List<String> options = args.length == 1 ? List.of("reload", "reconnect", "death")
+                : args.length == 2 && (args[0].equalsIgnoreCase("reconnect") || args[0].equalsIgnoreCase("death")) ? List.of("true", "false") : List.of();
         String prefix = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
         return options.stream().filter(option -> option.startsWith(prefix)).toList();
     }
@@ -163,16 +166,76 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     }
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onTeleport(PlayerTeleportEvent e) {
+        if (restoringRespawns.contains(e.getPlayer().getUniqueId())) return;
         if (e.getTo() == null || e.getFrom().getWorld().equals(e.getTo().getWorld())) return;
         if (engine.isLeashed(e.getPlayer().getUniqueId())) e.setCancelled(true);
         else engine.detachInvolving(e.getPlayer().getUniqueId());
     }
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onPortal(PlayerPortalEvent e) { onTeleport(e); }
-    @EventHandler public void onDeath(PlayerDeathEvent e) { engine.detachInvolving(e.getEntity().getUniqueId()); }
+    @EventHandler public void onDeath(PlayerDeathEvent e) {
+        UUID id = e.getEntity().getUniqueId(), holder = engine.leashHolder(id);
+        engine.death(id, holder != null && getServer().getEntity(holder) instanceof LeashHitch);
+    }
+    private LeashHitch respawnAnchor(UUID id) {
+        if (!engine.awaitingRespawn(id)) return null;
+        UUID holder = engine.leashHolder(id);
+        Entity entity = holder == null ? null : getServer().getEntity(holder);
+        return entity instanceof LeashHitch knot && knot.isValid()
+                && Tag.FENCES.isTagged(knot.getLocation().getBlock().getType()) ? knot : null;
+    }
+    private Location respawnPosition(LeashHitch knot) {
+        var origin = knot.getLocation().getBlock();
+        for (int dy : new int[] {0, 1, -1, 2, -2}) for (int radius = 1; radius <= 2; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
+                if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) continue;
+                var feet = origin.getRelative(dx, dy, dz);
+                var head = feet.getRelative(0, 1, 0);
+                var floor = feet.getRelative(0, -1, 0);
+                if (!feet.isPassable() || !head.isPassable() || feet.isLiquid() || head.isLiquid()
+                        || !floor.getType().isSolid()) continue;
+                if (Set.of(Material.LAVA, Material.FIRE, Material.SOUL_FIRE, Material.CACTUS,
+                        Material.MAGMA_BLOCK, Material.CAMPFIRE, Material.SOUL_CAMPFIRE,
+                        Material.SWEET_BERRY_BUSH, Material.POWDER_SNOW).contains(floor.getType())
+                        || Set.of(Material.FIRE, Material.SOUL_FIRE, Material.SWEET_BERRY_BUSH,
+                        Material.POWDER_SNOW).contains(feet.getType())) continue;
+                return feet.getLocation().add(0.5, 0, 0.5);
+            }
+        }
+        return origin.getLocation().add(0.5, 1.5, 0.5);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onRespawn(PlayerRespawnEvent e) {
+        UUID id = e.getPlayer().getUniqueId();
+        if (!engine.awaitingRespawn(id)) return;
+        LeashHitch knot = respawnAnchor(id);
+        if (knot == null) { engine.detach(id); return; }
+        e.setRespawnLocation(respawnPosition(knot));
+        getServer().getScheduler().runTask(this, () -> {
+            Player player = getServer().getPlayer(id);
+            if (player != null && !player.isDead()) engine.respawn(id);
+        });
+    }
+    private void completeRespawn(Player player) {
+        UUID id = player.getUniqueId();
+        if (!engine.awaitingRespawn(id) || player.isDead()) return;
+        LeashHitch knot = respawnAnchor(id);
+        if (knot == null) { engine.detach(id); return; }
+        restoringRespawns.add(id);
+        try {
+            if (player.teleport(respawnPosition(knot))) engine.respawn(id);
+            else engine.detach(id);
+        } finally { restoringRespawns.remove(id); }
+    }
     @EventHandler public void onQuit(PlayerQuitEvent e) { engine.logout(e.getPlayer().getUniqueId()); }
-    @EventHandler public void onJoin(PlayerJoinEvent e) { engine.resume(e.getPlayer().getUniqueId()); }
-    @EventHandler public void onWorld(PlayerChangedWorldEvent e) { engine.detachInvolving(e.getPlayer().getUniqueId()); }
+    @EventHandler public void onJoin(PlayerJoinEvent e) {
+        if (engine.awaitingRespawn(e.getPlayer().getUniqueId()))
+            getServer().getScheduler().runTask(this, () -> completeRespawn(e.getPlayer()));
+        else engine.resume(e.getPlayer().getUniqueId());
+    }
+    @EventHandler public void onWorld(PlayerChangedWorldEvent e) {
+        if (!engine.awaitingRespawn(e.getPlayer().getUniqueId())) engine.detachInvolving(e.getPlayer().getUniqueId());
+    }
     @Override public LeashEngine.Actor actor(UUID id) {
         Entity entity = getServer().getEntity(id);
         if (entity == null) return null;

@@ -33,8 +33,10 @@ for file in (root/'mod-common/src/main/java').rglob('*.java'):
  if file.name=='LeashCommands.java' and at('1.21.11'):
   s=s.replace('.requires(source -> source.hasPermission(2))', '.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))')
  if file.name=='LeashManager.java' and at('1.21.2'):
+  s=s.replace('Set.of(), player.getYRot(), player.getXRot())', 'Set.of(), player.getYRot(), player.getXRot(), false)')
   s=s.replace('proxies.get(proxy).spawnAtLocation(Items.LEAD)',
       'proxies.get(proxy).spawnAtLocation((net.minecraft.server.level.ServerLevel)proxies.get(proxy).level(), Items.LEAD)')
+ if at('26.2'):s=s.replace('net.minecraft.world.entity.EntityType.PLAYER', 'net.minecraft.world.entity.EntityTypes.PLAYER')
  if at('1.21.6'):s=s.replace('.serverLevel()', '.level()')
  if at('1.21.11'):s=s.replace('.location()', '.identifier()')
  dest=out/file.relative_to(root/'mod-common/src/main/java');dest.parent.mkdir(parents=True,exist_ok=True);dest.write_text(s)
@@ -90,7 +92,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 abstract class CommandTeleportMixin {
     private boolean leashis$block(ServerLevel destination) {
         ServerPlayer self = (ServerPlayer)(Object)this;
-        if (LeashisFabric.manager == null || self.level() == destination) return false;
+        if (LeashisFabric.manager == null || LeashisFabric.manager.isRespawning(self.getUUID()) || self.level() == destination) return false;
         if (LeashisFabric.manager.isLeashed(self.getUUID())) return true;
         LeashisFabric.manager.detachInvolving(self.getUUID(), DetachReason.DIMENSION_CHANGE);
         return false;

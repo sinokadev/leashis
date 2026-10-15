@@ -23,7 +23,7 @@ public final class LeashEngine {
     }
     public enum Interaction { PASS, HANDLED, ATTACHED, ALREADY_BOUND }
     public record Session(UUID target, UUID proxy, long attachedAt, boolean refund) { }
-    private record Suspended(Session session, UUID holder) { }
+    private record Suspended(Session session, UUID holder, boolean respawn) { }
     private record Stamp(UUID target, long tick) { }
     private final Port port;
     private final Supplier<Settings> settings;
@@ -86,28 +86,49 @@ public final class LeashEngine {
         return isLeashed(player) || sessions().stream().anyMatch(s -> player.equals(port.holder(s.proxy())))
                 || suspended.values().stream().anyMatch(s -> player.equals(s.holder()));
     }
-    public void logout(UUID player) {
-        if (!settings.get().keepOnLogout()) { detachInvolving(player); return; }
+    public UUID leashHolder(UUID player) {
+        Session active = sessions.get(player);
+        Suspended saved = suspended.get(player);
+        return active != null ? port.holder(active.proxy()) : saved == null ? null : saved.holder();
+    }
+    public boolean awaitingRespawn(UUID player) {
+        Suspended saved = suspended.get(player);
+        return saved != null && saved.respawn() && settings.get().keepOnDeath();
+    }
+    private void suspend(UUID player, boolean respawn) {
         Session session = sessions.remove(player);
-        if (session != null) {
-            UUID holder = port.holder(session.proxy());
-            suspended.put(player, new Suspended(session, holder));
-            port.suspendProxy(session.proxy());
-        }
-        // A departing holder still releases the players they are holding.
+        if (session == null) return;
+        suspended.put(player, new Suspended(session, port.holder(session.proxy()), respawn));
+        port.suspendProxy(session.proxy());
+    }
+    private void detachHeldBy(UUID player) {
         interactions.remove(player);
         for (Session s : sessions())
             if (player.equals(port.holder(s.proxy()))) detach(s.target());
         for (Suspended s : List.copyOf(suspended.values()))
             if (player.equals(s.holder())) detach(s.session().target());
     }
-    public void resume(UUID player) {
+    public void death(UUID player, boolean tiedToFence) {
+        if (!awaitingRespawn(player)) {
+            if (tiedToFence && settings.get().keepOnDeath()) suspend(player, true);
+            else detach(player);
+        }
+        detachHeldBy(player);
+    }
+    public void logout(UUID player) {
+        if (!settings.get().keepOnLogout()) { detachInvolving(player); return; }
+        suspend(player, false);
+        detachHeldBy(player);
+    }
+    public void resume(UUID player) { restore(player, false); }
+    public void respawn(UUID player) { restore(player, true); }
+    private void restore(UUID player, boolean respawn) {
         Suspended saved = suspended.get(player);
-        if (saved == null) return;
+        if (saved == null || saved.respawn() != respawn) return;
         Session old = saved.session();
         Actor target = port.actor(player), holder = saved.holder() == null ? null : port.actor(saved.holder());
-        if (!settings.get().enabled() || !settings.get().keepOnLogout() || !eligible(target) || !eligible(holder) || target.riding()
-                || !target.world().equals(holder.world())) {
+        if (!settings.get().enabled() || (respawn ? !settings.get().keepOnDeath() : !settings.get().keepOnLogout())
+                || !eligible(target) || !eligible(holder) || target.riding() || !target.world().equals(holder.world())) {
             detach(player);
             return;
         }
@@ -123,7 +144,7 @@ public final class LeashEngine {
         Settings config = settings.get();
         for (Suspended s : List.copyOf(suspended.values())) {
             Actor holder = s.holder() == null ? null : port.actor(s.holder());
-            if (!config.enabled() || !config.keepOnLogout() || !eligible(holder)) detach(s.session().target());
+            if (!config.enabled() || (s.respawn() ? !config.keepOnDeath() : !config.keepOnLogout()) || !eligible(holder)) detach(s.session().target());
         }
         for (Session s : sessions()) {
             Actor target = port.actor(s.target());

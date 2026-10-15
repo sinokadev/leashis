@@ -127,6 +127,44 @@ public final class EngineTest {
         f=new Fixture(); assert f.attach(false); f.engine.logout(f.target);
         f.settings=new Settings(true,4,10,false,false); f.engine.resume(f.target);
         assert !f.engine.isLeashed(f.target) && f.refunds==1;
+        // Fence deaths preserve paid ownership even when logout retention is disabled.
+        f=new Fixture(); f.settings=new Settings(true,4,10,false,false); assert f.attach(false);
+        knot=UUID.randomUUID(); f.position(knot,2); f.holders.put(f.proxy(),knot);
+        f.engine.death(f.target,true); f.state(f.target,false,false,false,WORLD);
+        for (int i=0;i<100;i++) f.engine.tick();
+        assert f.engine.awaitingRespawn(f.target) && f.engine.isLeashed(f.target) && f.refunds==0;
+        assert f.engine.holders().contains(knot);
+        f.engine.resume(f.target); assert f.engine.awaitingRespawn(f.target);
+        f.position(f.target,1); f.engine.respawn(f.target); f.engine.tick();
+        assert f.engine.isLeashed(f.target) && !f.engine.awaitingRespawn(f.target) && f.refunds==0;
+        assert knot.equals(f.holder(f.proxy()));
+        f.engine.death(f.target,true); f.engine.death(f.target,false);
+        assert f.engine.awaitingRespawn(f.target) && f.refunds==0;
+        f.engine.detach(f.target); assert f.refunds==1;
+        f.engine.respawn(f.target); assert !f.engine.isLeashed(f.target);
+        // Player-held deaths still release both the incoming and outgoing leashes.
+        f=new Fixture(); assert f.attach(false);
+        assert f.engine.attach(f.target,f.stranger,true); f.engine.death(f.target,false);
+        assert !f.engine.isLeashed(f.target) && !f.engine.isLeashed(f.stranger) && f.refunds==2;
+        f.engine.respawn(f.target); assert f.spawns==2;
+        // A missing fence while waiting cannot revive a stale connection.
+        f=new Fixture(); assert f.attach(false); knot=UUID.randomUUID(); f.position(knot,2);
+        f.holders.put(f.proxy(),knot); f.engine.death(f.target,true); f.actors.remove(knot); f.engine.tick();
+        assert !f.engine.isLeashed(f.target) && f.refunds==1;
+        // Death retention is independently configurable and releases exactly once when disabled.
+        f=new Fixture(); f.settings=new Settings(true,4,10,false,true,false); assert f.attach(false);
+        knot=UUID.randomUUID(); f.position(knot,2); f.holders.put(f.proxy(),knot);
+        f.engine.death(f.target,true); f.engine.respawn(f.target);
+        assert !f.engine.isLeashed(f.target) && !f.engine.awaitingRespawn(f.target) && f.refunds==1 && f.spawns==1;
+        for (boolean tick : new boolean[] {true,false}) {
+            f=new Fixture(); assert f.attach(false); knot=UUID.randomUUID(); f.position(knot,2);
+            f.holders.put(f.proxy(),knot); f.engine.death(f.target,true);
+            f.settings=new Settings(true,4,10,false,true,false);
+            assert !f.engine.awaitingRespawn(f.target);
+            if (tick) f.engine.tick(); else f.engine.respawn(f.target);
+            assert !f.engine.isLeashed(f.target) && f.refunds==1 && f.spawns==1;
+            f.engine.stop(); assert f.refunds==1;
+        }
         System.out.println("LeashEngine regression suite passed");
     }
 }

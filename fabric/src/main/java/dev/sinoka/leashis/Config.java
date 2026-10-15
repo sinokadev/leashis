@@ -11,6 +11,7 @@ public final class Config {
     public static final Value<Integer> DISTANCE_MAX = new Value<>(10);
     public static final Value<Boolean> ALLOW_LEASHED_REMOVE_FENCE_KNOT = new Value<>(false);
     public static final Value<Boolean> KEEP_ON_LOGOUT = new Value<>(true);
+    public static final Value<Boolean> KEEP_ON_DEATH = new Value<>(true);
     private static Path configPath;
     public static final class Value<T> {
         private T value;
@@ -27,20 +28,29 @@ public final class Config {
         DISTANCE_MAX.set(integer(properties, "distanceMax", 10, 1));
         ALLOW_LEASHED_REMOVE_FENCE_KNOT.set(bool(properties, "allowLeashedRemoveFenceKnot", false));
         KEEP_ON_LOGOUT.set(bool(properties, "keepOnLogout", true));
+        KEEP_ON_DEATH.set(bool(properties, "keepOnDeath", true));
         if (!Files.exists(path)) {
             properties.setProperty("enabled", "true"); properties.setProperty("distanceMin", "4");
             properties.setProperty("distanceMax", "10"); properties.setProperty("allowLeashedRemoveFenceKnot", "false");
             properties.setProperty("keepOnLogout", "true");
+            properties.setProperty("keepOnDeath", "true");
             Files.createDirectories(path.getParent());
             try (Writer writer = Files.newBufferedWriter(path)) { properties.store(writer, "Leashis server settings"); }
         }
     }
     public static void setKeepOnLogout(boolean value) throws IOException {
+        saveBoolean("keepOnLogout", value);
+        KEEP_ON_LOGOUT.set(value);
+    }
+    public static void setKeepOnDeath(boolean value) throws IOException {
+        saveBoolean("keepOnDeath", value);
+        KEEP_ON_DEATH.set(value);
+    }
+    private static void saveBoolean(String key, boolean value) throws IOException {
         Properties properties = new Properties();
         if (Files.exists(configPath)) try (Reader reader = Files.newBufferedReader(configPath)) { properties.load(reader); }
-        properties.setProperty("keepOnLogout", Boolean.toString(value));
+        properties.setProperty(key, Boolean.toString(value));
         try (Writer writer = Files.newBufferedWriter(configPath)) { properties.store(writer, "Leashis server settings"); }
-        KEEP_ON_LOGOUT.set(value);
     }
     private static int integer(Properties p, String key, int fallback, int min) {
         return Math.max(min, Math.min(1024, Integer.parseInt(p.getProperty(key, "" + fallback))));

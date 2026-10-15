@@ -46,12 +46,16 @@ function click(owner,id){
  owner.write('use_entity',{target:id,mouse:0,hand:0,sneaking:false});
 }
 (async()=>{
- const owner=connect('LeashOwner');let target=connect('LeashTarget');
+ const owner=connect('LeashOwner');
+ // Older servers share a login RNG across network threads; avoid racing initial handshakes.
+ for(let i=0;i<100&&!owner.position;i++)await delay(100);
+ let target=connect('LeashTarget');
  try {
   for(let i=0;i<100&&(!owner.position||!target.position);i++)await delay(100);
   assert(owner.position&&target.position,'Both vanilla clients must join');
   console.log('CLIENT vanilla clients joined');
   consoleCommand('leashis reconnect true');consoleCommand('leashis reconnect');
+  consoleCommand('leashis death true');consoleCommand('leashis death');
   consoleCommand('gamerule doMobSpawning false');consoleCommand('gamerule doDaylightCycle false');
   consoleCommand('fill -15 79 -15 15 79 15 stone');
   consoleCommand('gamemode survival LeashOwner');consoleCommand('gamemode survival LeashTarget');
@@ -94,8 +98,39 @@ function click(owner,id){
   await delay(500);
   const knot=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.leash_knot.id);
   assert(knot,'Fence transfer creates a vanilla knot');
-  const tied=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  let tied=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
   assert(owner.leashes.some(l=>l.entityId===tied.entityId&&l.vehicleId===knot.entityId),'Proxy holder changes to fence knot');
+  // Death must not consume/refund the lead or overwrite the player's real spawn.
+  consoleCommand('spawnpoint LeashTarget 10 80 10');consoleCommand('clear LeashTarget');
+  consoleCommand('leashis reconnect false');await delay(300);
+  drops=owner.items.length;let deathRespawns=target.respawns;
+  consoleCommand('kill LeashTarget');await delay(700);
+  assert.equal(owner.items.length,drops,'Fence death does not refund lead');
+  target.write('client_command',{actionId:'perform_respawn'});
+  for(let i=0;i<100&&target.respawns===deathRespawns;i++)await delay(100);
+  assert(target.respawns>deathRespawns,'Fence target respawns');await delay(700);
+  assert(Math.abs(target.position.x-2.5)<4&&Math.abs(target.position.z-0.5)<4,'Fence target respawns near anchor');
+  let deathProxy=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  assert(deathProxy&&owner.leashes.some(l=>l.entityId===deathProxy.entityId&&l.vehicleId===knot.entityId),'Fence death restores same knot');
+  assert.equal(owner.items.length,drops,'Fence respawn does not refund or mint lead');
+  assert.equal(owner.itemCount,2,'Fence respawn does not consume another lead');
+  // A spawn in another dimension must also return to the fence's world.
+  consoleCommand('execute in minecraft:the_nether run fill 9 79 9 11 79 11 stone');
+  consoleCommand('execute in minecraft:the_nether run fill 9 80 9 11 83 11 air');
+  consoleCommand('execute in minecraft:the_nether run spawnpoint LeashTarget 10 80 10');await delay(300);
+  deathRespawns=target.respawns;consoleCommand('kill LeashTarget');await delay(700);
+  target.write('client_command',{actionId:'perform_respawn'});
+  for(let i=0;i<100&&target.respawns===deathRespawns;i++)await delay(100);
+  assert(target.respawns>deathRespawns,'Cross-dimension fence target respawns');await delay(900);
+  assert(Math.abs(target.position.x-2.5)<4&&Math.abs(target.position.z-0.5)<4,'Other-dimension spawn returns to anchor');
+  deathProxy=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  assert(deathProxy&&owner.leashes.some(l=>l.entityId===deathProxy.entityId&&l.vehicleId===knot.entityId),'Cross-dimension death restores fence holder');
+  assert.equal(owner.items.length,drops,'Repeated death does not refund or duplicate lead');
+  consoleCommand('spawnpoint LeashTarget 10 80 10');
+  consoleCommand('tp LeashTarget 1 80 0');await delay(500);
+  tied=deathProxy;
+  consoleCommand('leashis reconnect true');await delay(300);
+  console.log('CLIENT fence death, respawn retention and reconnect policy independence PASS');
   // Powered pistons must not move an occupied fence, even through sticky blocks.
   consoleCommand('setblock 2 80 -1 minecraft:piston[facing=south]');
   consoleCommand('setblock 2 80 -2 minecraft:redstone_block');await delay(600);
@@ -119,10 +154,10 @@ function click(owner,id){
   console.log('CLIENT piston push, slime chain and sticky pull protection PASS');
   consoleCommand('gamemode creative LeashTarget');consoleCommand('setblock 3 80 0 minecraft:oak_fence');await delay(300);
   target.write('block_dig',{status:0,location:{x:2,y:80,z:0},face:1,sequence:1});await delay(500);
-  assert.equal(data.blocksByStateId[target.blocks.get('2,80,0')]?.name,'oak_fence','Bound target cannot break own fence in creative');
+  assert.equal(data.blocksByStateId[owner.blocks.get('2,80,0')]?.name,'oak_fence','Bound target cannot break own fence in creative');
   assert(owner.entities.has(tied.entityId),'Blocked fence break preserves leash');
   target.write('block_dig',{status:0,location:{x:3,y:80,z:0},face:1,sequence:2});await delay(500);
-  assert.equal(target.blocks.get('3,80,0'),data.blocksByName.air.defaultState,'Bound target can break an unrelated fence');
+  assert.equal(owner.blocks.get('3,80,0'),data.blocksByName.air.defaultState,'Bound target can break an unrelated fence');
   consoleCommand('gamemode survival LeashTarget');await delay(300);
   drops=owner.items.length;target.end();await delay(700);
   assert(!owner.entities.has(tied.entityId),'Offline target removes old fence proxy');
@@ -149,10 +184,39 @@ function click(owner,id){
   consoleCommand('setblock 2 80 1 minecraft:air');consoleCommand('setblock 2 80 0 minecraft:oak_fence');await delay(300);
   consoleCommand('gamemode creative LeashTarget');await delay(300);
   target.write('block_dig',{status:0,location:{x:2,y:80,z:0},face:1,sequence:3});await delay(500);
-  assert.equal(target.blocks.get('2,80,0'),data.blocksByName.air.defaultState,'Released target can break former anchor');
+  assert.equal(owner.blocks.get('2,80,0'),data.blocksByName.air.defaultState,'Released target can break former anchor');
   consoleCommand('gamemode survival LeashTarget');await delay(300);
   console.log('CLIENT fence transfer, knot protection, own fence block protection, dimension blocking PASS');
-  consoleCommand('setblock 2 80 0 minecraft:air');
+  consoleCommand('setblock 2 80 0 minecraft:air');consoleCommand('clear LeashTarget');await delay(300);
+  deathRespawns=target.respawns;consoleCommand('kill LeashTarget');await delay(500);
+  target.write('client_command',{actionId:'perform_respawn'});
+  for(let i=0;i<100&&target.respawns===deathRespawns;i++)await delay(100);
+  assert(target.respawns>deathRespawns,'Unbound target respawns');await delay(700);
+  assert(Math.abs(target.position.x-10.5)<2&&Math.abs(target.position.z-10.5)<2,'Unbound death uses original saved spawn');
+  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Unbound death does not recreate leash');
+  consoleCommand('tp LeashTarget 1 80 0');await delay(300);
+  console.log('CLIENT unbound death restores original spawn PASS');
+  // Turning death retention off must restore normal death release and spawning.
+  consoleCommand('setblock 2 80 0 minecraft:oak_fence');
+  consoleCommand('clear LeashOwner');consoleCommand('give LeashOwner minecraft:lead 3');
+  consoleCommand('clear LeashTarget');await delay(500);
+  click(owner,target.entityId);await delay(500);
+  owner.write('block_place',{hand:0,location:{x:2,y:80,z:0},direction:1,cursorX:0.5,cursorY:0.5,cursorZ:0.5,insideBlock:false,sequence:4});
+  await delay(500);
+  const disabledProxy=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  assert(disabledProxy,'Death policy fixture has a proxy');
+  assert(owner.leashes.some(l=>l.entityId===disabledProxy.entityId&&l.vehicleId!==owner.entityId&&l.vehicleId>=0),'Death policy fixture is tied to fence');
+  consoleCommand('leashis death false');consoleCommand('leashis death');await delay(300);
+  drops=owner.items.length;deathRespawns=target.respawns;
+  consoleCommand('kill LeashTarget');await delay(500);
+  assert.equal(owner.items.length,drops+1,'Disabled death retention refunds exactly one lead');
+  target.write('client_command',{actionId:'perform_respawn'});
+  for(let i=0;i<100&&target.respawns===deathRespawns;i++)await delay(100);
+  assert(target.respawns>deathRespawns,'Death policy false respawns normally');await delay(700);
+  assert(Math.abs(target.position.x-10.5)<2&&Math.abs(target.position.z-10.5)<2,'Death policy false uses saved spawn even when tied to fence');
+  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Death policy false does not restore leash');
+  consoleCommand('tp LeashTarget 1 80 0');consoleCommand('setblock 2 80 0 minecraft:air');await delay(300);
+  console.log('CLIENT death command true/false and normal spawn policy PASS');
   if(process.env.LEASHIS_TEST_CONFIG) {
     const fs=require('node:fs');
     fs.writeFileSync(process.env.LEASHIS_TEST_CONFIG,'enabled: true\ndistanceMin: 4\ndistanceMax: 20\nallowLeashedRemoveFenceKnot: false\n');

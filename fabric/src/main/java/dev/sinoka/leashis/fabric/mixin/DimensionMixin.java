@@ -16,7 +16,7 @@ abstract class DimensionMixin {
     @Inject(method = "changeDimension", at = @At("HEAD"), cancellable = true)
     private void leashis$travel(DimensionTransition transition, CallbackInfoReturnable<Entity> callback) {
         ServerPlayer self = (ServerPlayer)(Object)this;
-        if (LeashisFabric.manager == null || self.level() == transition.newLevel()) return;
+        if (LeashisFabric.manager == null || LeashisFabric.manager.isRespawning(self.getUUID()) || self.level() == transition.newLevel()) return;
         if (LeashisFabric.manager.isLeashed(self.getUUID())) callback.setReturnValue(null);
         else LeashisFabric.manager.detachInvolving(self.getUUID(), DetachReason.DIMENSION_CHANGE);
     }

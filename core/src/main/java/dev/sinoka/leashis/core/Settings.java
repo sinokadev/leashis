@@ -1,6 +1,9 @@
 package dev.sinoka.leashis.core;
 
-public record Settings(boolean enabled, int distanceMin, int distanceMax, boolean allowKnotRemoval, boolean keepOnLogout) {
+public record Settings(boolean enabled, int distanceMin, int distanceMax, boolean allowKnotRemoval, boolean keepOnLogout, boolean keepOnDeath) {
+    public Settings(boolean enabled, int distanceMin, int distanceMax, boolean allowKnotRemoval, boolean keepOnLogout) {
+        this(enabled, distanceMin, distanceMax, allowKnotRemoval, keepOnLogout, true);
+    }
     public Settings(boolean enabled, int distanceMin, int distanceMax, boolean allowKnotRemoval) {
         this(enabled, distanceMin, distanceMax, allowKnotRemoval, true);
     }

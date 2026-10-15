@@ -7,7 +7,7 @@ description: Server-side player leashes
 commands:
   leashis:
     description: Manage Leashis configuration
-    usage: /leashis reload | /leashis reconnect [true|false]
+    usage: /leashis reload | /leashis reconnect [true|false] | /leashis death [true|false]
     permission: leashis.admin
 permissions:
   leashis.admin:

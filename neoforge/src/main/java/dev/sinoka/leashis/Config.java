@@ -22,6 +22,15 @@ public final class Config {
             .comment("Keep the target's leash when they disconnect and reconnect.")
             .define("keepOnLogout", true);
 
+    public static final ModConfigSpec.BooleanValue KEEP_ON_DEATH = BUILDER
+            .comment("Keep fence leashes on death and respawn near the fence.")
+            .define("keepOnDeath", true);
+
+    public static void setKeepOnDeath(boolean value) throws java.io.IOException {
+        KEEP_ON_DEATH.set(value);
+        KEEP_ON_DEATH.save();
+    }
+
     public static void setKeepOnLogout(boolean value) throws java.io.IOException {
         KEEP_ON_LOGOUT.set(value);
         KEEP_ON_LOGOUT.save();

@@ -25,6 +25,11 @@ public final class LeashisFabric implements DedicatedServerModInitializer {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 manager.logout(handler.player));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> manager.login(handler.player));
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if (entity instanceof ServerPlayer player) manager.death(player);
+        });
+        net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.AFTER_RESPAWN.register(
+                (oldPlayer, newPlayer, alive) -> manager.respawn(newPlayer));
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) ->
                 !(player instanceof ServerPlayer actor) || !manager.shouldProtectFence(actor, pos));
         UseEntityCallback.EVENT.register((player, world, hand, clicked, hit) -> {

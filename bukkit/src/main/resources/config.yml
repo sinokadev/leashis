@@ -3,3 +3,4 @@ distanceMin: 4
 distanceMax: 10
 allowLeashedRemoveFenceKnot: false
 keepOnLogout: true
+keepOnDeath: true

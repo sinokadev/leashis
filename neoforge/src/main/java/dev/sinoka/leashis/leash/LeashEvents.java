@@ -66,6 +66,7 @@ public final class LeashEvents {
 
     @SubscribeEvent
     public void onDimensionTravel(EntityTravelToDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && manager.isRespawning(player.getUUID())) return;
         if (event.getEntity() instanceof LeashProxyEntity
                 || event.getEntity() instanceof ServerPlayer player && manager.isLeashed(player.getUUID())) {
             event.setCanceled(true);
@@ -80,8 +81,13 @@ public final class LeashEvents {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            manager.detachInvolving(player.getUUID(), DetachReason.DEATH);
+            manager.death(player);
         }
+    }
+
+    @SubscribeEvent
+    public void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) manager.respawn(player);
     }
 
     @SubscribeEvent
@@ -98,7 +104,7 @@ public final class LeashEvents {
 
     @SubscribeEvent
     public void onDimensionChange(PlayerEvent.PlayerChangedDimensionEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
+        if (event.getEntity() instanceof ServerPlayer player && !manager.isRespawning(player.getUUID())) {
             manager.detachInvolving(player.getUUID(), DetachReason.DIMENSION_CHANGE);
         }
     }

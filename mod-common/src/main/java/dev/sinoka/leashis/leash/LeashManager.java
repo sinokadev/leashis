@@ -18,7 +18,7 @@ public final class LeashManager implements LeashEngine.Port {
     private final Map<UUID, Entity> entities = new HashMap<>();
     private final Map<UUID, LeashProxyEntity> proxies = new HashMap<>();
     private final LeashEngine engine = new LeashEngine(this, () -> new Settings(Config.ENABLED.get(),
-            Config.DISTANCE_MIN.get(), Config.DISTANCE_MAX.get(), Config.ALLOW_LEASHED_REMOVE_FENCE_KNOT.get(), Config.KEEP_ON_LOGOUT.get()));
+            Config.DISTANCE_MIN.get(), Config.DISTANCE_MAX.get(), Config.ALLOW_LEASHED_REMOVE_FENCE_KNOT.get(), Config.KEEP_ON_LOGOUT.get(), Config.KEEP_ON_DEATH.get()));
 
     public LeashSession getSession(UUID id) {
         return engine.sessions().stream().filter(s -> s.target().equals(id))
@@ -57,14 +57,66 @@ public final class LeashManager implements LeashEngine.Port {
         return engine.attach(holder.getUUID(), target.getUUID(), !holder.isCreative());
     }
     public void tick(MinecraftServer server) {
+        // Respawn events can fire before the connection switches to the replacement player.
+        var ready = List.copyOf(pendingRespawns.values());
+        pendingRespawns.clear();
+        for (ServerPlayer player : ready) if (!player.hasDisconnected() && player.isAlive()) completeRespawn(player);
         engine.advanceTo(server.overworld().getGameTime()); engine.tick();
         entities.keySet().removeIf(id -> !engine.involves(id));
     }
     public void logout(ServerPlayer player) { engine.logout(player.getUUID()); }
-    public void login(ServerPlayer player) { remember(player); engine.resume(player.getUUID()); }
+    public void login(ServerPlayer player) {
+        remember(player);
+        if (engine.awaitingRespawn(player.getUUID()) && player.isAlive()) respawn(player);
+        else engine.resume(player.getUUID());
+    }
+    private final Map<UUID, ServerPlayer> pendingRespawns = new HashMap<>();
+    private final Set<UUID> restoringRespawns = new HashSet<>();
+    public boolean isRespawning(UUID player) { return restoringRespawns.contains(player); }
+    public void death(ServerPlayer player) {
+        remember(player);
+        UUID holder = engine.leashHolder(player.getUUID());
+        engine.death(player.getUUID(), entities.get(holder) instanceof LeashFenceKnotEntity);
+    }
+    public void respawn(ServerPlayer player) {
+        remember(player);
+        if (engine.awaitingRespawn(player.getUUID())) pendingRespawns.put(player.getUUID(), player);
+    }
+    private void completeRespawn(ServerPlayer player) {
+        UUID id = player.getUUID();
+        remember(player);
+        if (!engine.awaitingRespawn(id)) return;
+        Entity anchor = entities.get(engine.leashHolder(id));
+        if (!(anchor instanceof LeashFenceKnotEntity knot) || knot.isRemoved() || !knot.survives()) {
+            engine.detach(id);
+            return;
+        }
+        var level = (net.minecraft.server.level.ServerLevel)knot.level();
+        Vec3 position = respawnPosition(level, knot.getPos());
+        restoringRespawns.add(id);
+        try {
+            if (player.teleportTo(level, position.x, position.y, position.z, Set.of(), player.getYRot(), player.getXRot()))
+                engine.respawn(id);
+            else engine.detach(id);
+        } finally { restoringRespawns.remove(id); }
+    }
+    private static Vec3 respawnPosition(net.minecraft.server.level.ServerLevel level, net.minecraft.core.BlockPos fence) {
+        for (int dy : new int[] {0, 1, -1, 2, -2}) {
+            for (int radius = 1; radius <= 2; radius++) {
+                for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) continue;
+                    var safe = net.minecraft.world.entity.vehicle.DismountHelper.findSafeDismountLocation(
+                            net.minecraft.world.entity.EntityType.PLAYER, level, fence.offset(dx, dy, dz), true);
+                    if (safe != null) return safe;
+                }
+            }
+        }
+        // A fence can support a player when its surroundings offer no standing space.
+        return Vec3.atBottomCenterOf(fence).add(0, 1.5, 0);
+    }
     public void detach(UUID id, DetachReason reason) { engine.detach(id); }
     public void detachInvolving(UUID id, DetachReason reason) { engine.detachInvolving(id); }
-    public void stop() { engine.stop(); entities.clear(); }
+    public void stop() { engine.stop(); entities.clear(); pendingRespawns.clear(); }
     public void clearStaleTeam(MinecraftServer server) {
         var scoreboard = server.getScoreboard();
         var team = scoreboard.getPlayerTeam(LeashProxyEntity.TEAM_NAME);
