@@ -6,8 +6,8 @@ author: SinokaDev
 description: Server-side player leashes
 commands:
   leashis:
-    description: Reload Leashis configuration
-    usage: /leashis reload
+    description: Manage Leashis configuration
+    usage: /leashis reload | /leashis reconnect [true|false]
     permission: leashis.admin
 permissions:
   leashis.admin:

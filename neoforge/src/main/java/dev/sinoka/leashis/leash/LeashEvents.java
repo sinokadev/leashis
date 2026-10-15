@@ -59,6 +59,12 @@ public final class LeashEvents {
     }
 
     @SubscribeEvent
+    public void onBlockBreak(net.neoforged.neoforge.event.level.BlockEvent.BreakEvent event) {
+        if (event.getPlayer() instanceof ServerPlayer player
+                && manager.shouldProtectFence(player, event.getPos())) event.setCanceled(true);
+    }
+
+    @SubscribeEvent
     public void onDimensionTravel(EntityTravelToDimensionEvent event) {
         if (event.getEntity() instanceof LeashProxyEntity
                 || event.getEntity() instanceof ServerPlayer player && manager.isLeashed(player.getUUID())) {
@@ -79,9 +85,14 @@ public final class LeashEvents {
     }
 
     @SubscribeEvent
+    public void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) manager.login(player);
+    }
+
+    @SubscribeEvent
     public void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            manager.detachInvolving(player.getUUID(), DetachReason.LOGOUT);
+            manager.logout(player);
         }
     }
 
@@ -90,6 +101,11 @@ public final class LeashEvents {
         if (event.getEntity() instanceof ServerPlayer player) {
             manager.detachInvolving(player.getUUID(), DetachReason.DIMENSION_CHANGE);
         }
+    }
+
+    @SubscribeEvent
+    public void onRegisterCommands(net.neoforged.neoforge.event.RegisterCommandsEvent event) {
+        LeashCommands.register(event.getDispatcher());
     }
 
     @SubscribeEvent

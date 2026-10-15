@@ -17,11 +17,16 @@ public final class LeashisFabric implements DedicatedServerModInitializer {
         try { Config.load(FabricLoader.getInstance().getConfigDir().resolve("leashis-server.properties")); }
         catch (Exception e) { throw new IllegalStateException("Cannot load Leashis settings", e); }
         manager = new LeashManager();
+        net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback.EVENT.register(
+                (dispatcher, registry, environment) -> LeashCommands.register(dispatcher));
         ServerLifecycleEvents.SERVER_STARTED.register(server -> manager.clearStaleTeam(server));
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> manager.stop());
         ServerTickEvents.END_SERVER_TICK.register(server -> manager.tick(server));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-                manager.detachInvolving(handler.player.getUUID(), DetachReason.LOGOUT));
+                manager.logout(handler.player));
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> manager.login(handler.player));
+        PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) ->
+                !(player instanceof ServerPlayer actor) || !manager.shouldProtectFence(actor, pos));
         UseEntityCallback.EVENT.register((player, world, hand, clicked, hit) -> {
             if (!(player instanceof ServerPlayer actor)) return InteractionResult.PASS;
             if (manager.shouldProtectKnot(actor, clicked)) return InteractionResult.FAIL;

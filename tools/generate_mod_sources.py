@@ -28,6 +28,8 @@ for file in (root/'mod-common/src/main/java').rglob('*.java'):
   if at('26.2'):s=s.replace('EntityType.TURTLE','net.minecraft.world.entity.EntityTypes.TURTLE')
   if at('26.3'):s=s.replace('setInvulnerable(true)','setPermanentlyInvulnerable(true)')
   if at('1.21.11'):s=s.replace('net.minecraft.world.entity.animal.Turtle','net.minecraft.world.entity.animal.turtle.Turtle')
+ if file.name=='LeashCommands.java' and at('1.21.11'):
+  s=s.replace('.requires(source -> source.hasPermission(2))', '.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))')
  if file.name=='LeashManager.java' and at('1.21.2'):
   s=s.replace('proxies.get(proxy).spawnAtLocation(Items.LEAD)',
       'proxies.get(proxy).spawnAtLocation((net.minecraft.server.level.ServerLevel)proxies.get(proxy).level(), Items.LEAD)')
@@ -53,6 +55,11 @@ if a.loader=='neoforge':
   if not at('1.20.5') and file.name=='LeashEvents.java':
    s=s.replace('import net.neoforged.neoforge.event.tick.ServerTickEvent;', 'import net.neoforged.neoforge.event.TickEvent;')
    s=s.replace('ServerTickEvent.Post event', 'TickEvent.ServerTickEvent event').replace('manager.tick(event.getServer());', 'if (event.phase == TickEvent.Phase.END) manager.tick(event.getServer());')
+  if file.name=='LeashEvents.java' and at('26.1.2'):
+   s=s.replace('net.neoforged.neoforge.event.level.BlockEvent.BreakEvent',
+       'net.neoforged.neoforge.event.level.block.BreakBlockEvent')
+   s=s.replace('&& manager.shouldProtectFence(player, event.getPos())) event.setCanceled(true);',
+       '&& manager.shouldProtectFence(player, event.getPos())) { event.setCanceled(true); event.setNotifyClient(true); }')
   if at('26.3'):
    s=s.replace('ModConfig.Type.SERVER','ModConfig.Type.LOCAL')
   if at('26.2'):

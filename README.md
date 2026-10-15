@@ -26,9 +26,9 @@ The [validation record](docs/VALIDATION.md) distinguishes build verification fro
 
 ## Installation
 
-- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.0.jar` in `plugins/`.
-- Fabric: put `leashis-fabric-<MC>-2.0.0.jar` and Fabric API matching your server version in `mods/`.
-- NeoForge: put `leashis-neoforge-<MC>-2.0.0.jar` matching your server version in `mods/`.
+- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.1.jar` in `plugins/`.
+- Fabric: put `leashis-fabric-<MC>-2.0.1.jar` and Fabric API matching your server version in `mods/`.
+- NeoForge: put `leashis-neoforge-<MC>-2.0.1.jar` matching your server version in `mods/`.
 
 Install only one Leashis JAR for your server's platform.
 The server runtime requires Java 17 or newer for 1.20–1.20.4, Java 21 or newer for 1.20.5–1.21.11,
@@ -45,8 +45,9 @@ In survival mode, a successful connection consumes one lead and returns it once 
 Connections started in creative mode neither consume nor return leads, even if the player's game mode changes afterward.
 You can leash multiple players at once, but you cannot take over an already leashed player.
 
+Players tied to a fence cannot break that fence block, including in creative mode. This block protection applies even when `allowLeashedRemoveFenceKnot` is enabled; unrelated fences and other players are unaffected.
 Leashed players are blocked from right-clicking or directly attacking fence knots and from changing dimensions through portals or commands.
-Connections are cleaned up on death, logout, riding, spectator mode, disabling the feature, or a holder changing dimensions.
+By default, a leashed player reconnecting to the same running server keeps their connection, including fence attachments. The proxy is recreated on login without consuming or refunding another lead. Connections are cleaned up on death, holder logout, riding, spectator mode, disabling the feature, or a holder changing dimensions. Server restarts clear connections.
 A normal server shutdown returns consumed leads; connections do not survive a restart.
 Proxy entities are not saved to the world. Bukkit also removes stale marked proxies from loaded chunks.
 
@@ -69,6 +70,15 @@ Configuration meanings and defaults are shared across platforms.
 | `distanceMin` | `4` | Distance at which pulling starts (0–1024) |
 | `distanceMax` | `10` | Distance beyond which the leash breaks (1–1024) |
 | `allowLeashedRemoveFenceKnot` | `false` | Allow leashed players to remove fence knots |
+| `keepOnLogout` | `true` | Keep a leashed target's connection across reconnects to the same running server |
+
+Administrators (OP level 2 on mods, `leashis.admin` on Bukkit) and the server console can use these commands on every platform:
+
+- `/leashis reconnect`: show the current reconnect policy.
+- `/leashis reconnect true`: keep the target's leash across reconnects (default).
+- `/leashis reconnect false`: release the target on logout and refund a consumed lead.
+
+Changes apply immediately and are saved to the platform's configuration file. Turning retention off also releases targets who are already offline. Holder logout still releases their targets in either mode. Server restarts clear connections in either mode.
 
 If the minimum distance is greater than or equal to the maximum, the effective pulling threshold is capped at maximum distance minus 1.
 Fabric's `.properties` file uses `key=value` entries, such as `enabled=true`.
@@ -113,7 +123,7 @@ python3 tools/smoke_server.py --loader fabric --mc 1.20.1 \
   --client-script tests/integration/regression.cjs
 ```
 
-Integration tests cover lead consumption, duplicate clicks, leash display packets, refunds, creative mode, pulling, distance-based release, fence attachment, knot protection, dimension travel blocking, and logout cleanup.
+Integration tests cover lead consumption, duplicate clicks, leash display packets, refunds, creative mode, pulling, distance-based release, fence attachment, knot protection, dimension travel blocking, target reconnects (player and fence holders), and holder logout cleanup.
 Protocol tests do not check rendered leash appearance, so manual visual checks with two real clients are listed separately in the validation record.
 Test code and test worlds are excluded from distribution JARs.
 

@@ -15,16 +15,20 @@ public final class LeashEngine {
         boolean proxyValid(UUID proxy);
         UUID holder(UUID proxy);
         void follow(UUID proxy, UUID target);
+        /** Remove the entity while keeping its refund location until removeProxy. */
+        void suspendProxy(UUID proxy);
         void removeProxy(UUID proxy);
         void refund(UUID target, UUID proxy);
         void velocity(UUID target, Vec velocity);
     }
     public enum Interaction { PASS, HANDLED, ATTACHED, ALREADY_BOUND }
     public record Session(UUID target, UUID proxy, long attachedAt, boolean refund) { }
+    private record Suspended(Session session, UUID holder) { }
     private record Stamp(UUID target, long tick) { }
     private final Port port;
     private final Supplier<Settings> settings;
     private final Map<UUID, Session> sessions = new HashMap<>();
+    private final Map<UUID, Suspended> suspended = new HashMap<>();
     private final Map<UUID, Stamp> interactions = new HashMap<>();
     private long tick;
 
@@ -32,7 +36,7 @@ public final class LeashEngine {
         this.port = port;
         this.settings = settings;
     }
-    public boolean isLeashed(UUID target) { return sessions.containsKey(target); }
+    public boolean isLeashed(UUID target) { return sessions.containsKey(target) || suspended.containsKey(target); }
     public Collection<Session> sessions() { return List.copyOf(sessions.values()); }
     public boolean protectKnot(UUID actor) {
         return isLeashed(actor) && !settings.get().allowKnotRemoval();
@@ -61,17 +65,56 @@ public final class LeashEngine {
     }
     public boolean attach(UUID holder, UUID target, boolean refund) {
         Actor h = port.actor(holder), t = port.actor(target);
-        if (!settings.get().enabled() || holder.equals(target) || sessions.containsKey(target)
+        if (!settings.get().enabled() || holder.equals(target) || isLeashed(target)
                 || !eligible(h) || !eligible(t) || t.riding() || !h.world().equals(t.world())) return false;
         UUID proxy = port.spawnProxy(target, holder);
         if (proxy == null) return false;
         sessions.put(target, new Session(target, proxy, tick, refund));
         return true;
     }
+    public boolean involves(UUID player) {
+        return isLeashed(player) || sessions().stream().anyMatch(s -> player.equals(port.holder(s.proxy())))
+                || suspended.values().stream().anyMatch(s -> player.equals(s.holder()));
+    }
+    public void logout(UUID player) {
+        if (!settings.get().keepOnLogout()) { detachInvolving(player); return; }
+        Session session = sessions.remove(player);
+        if (session != null) {
+            UUID holder = port.holder(session.proxy());
+            suspended.put(player, new Suspended(session, holder));
+            port.suspendProxy(session.proxy());
+        }
+        // A departing holder still releases the players they are holding.
+        interactions.remove(player);
+        for (Session s : sessions())
+            if (player.equals(port.holder(s.proxy()))) detach(s.target());
+        for (Suspended s : List.copyOf(suspended.values()))
+            if (player.equals(s.holder())) detach(s.session().target());
+    }
+    public void resume(UUID player) {
+        Suspended saved = suspended.get(player);
+        if (saved == null) return;
+        Session old = saved.session();
+        Actor target = port.actor(player), holder = saved.holder() == null ? null : port.actor(saved.holder());
+        if (!settings.get().enabled() || !settings.get().keepOnLogout() || !eligible(target) || !eligible(holder) || target.riding()
+                || !target.world().equals(holder.world())) {
+            detach(player);
+            return;
+        }
+        UUID proxy = port.spawnProxy(player, saved.holder());
+        if (proxy == null) { detach(player); return; }
+        suspended.remove(player);
+        port.removeProxy(old.proxy());
+        sessions.put(player, new Session(player, proxy, old.attachedAt(), old.refund()));
+    }
     public void advanceTo(long value) { tick = Math.max(tick, value); }
     public void tick() {
         tick++;
         Settings config = settings.get();
+        for (Suspended s : List.copyOf(suspended.values())) {
+            Actor holder = s.holder() == null ? null : port.actor(s.holder());
+            if (!config.enabled() || !config.keepOnLogout() || !eligible(holder)) detach(s.session().target());
+        }
         for (Session s : sessions()) {
             Actor target = port.actor(s.target());
             UUID holderId = port.holder(s.proxy());
@@ -98,17 +141,24 @@ public final class LeashEngine {
     }
     public void detach(UUID target) {
         Session session = sessions.remove(target);
-        if (session == null) return;
+        if (session == null) {
+            Suspended saved = suspended.remove(target);
+            if (saved == null) return;
+            session = saved.session();
+        }
         try { if (session.refund()) port.refund(target, session.proxy()); }
         finally { port.removeProxy(session.proxy()); }
     }
     public void detachInvolving(UUID player) {
         interactions.remove(player);
+        for (Suspended s : List.copyOf(suspended.values()))
+            if (s.session().target().equals(player) || player.equals(s.holder())) detach(s.session().target());
         for (Session s : sessions()) {
             if (s.target().equals(player) || player.equals(port.holder(s.proxy()))) detach(s.target());
         }
     }
     public void stop() {
+        for (UUID target : List.copyOf(suspended.keySet())) detach(target);
         for (Session s : sessions()) detach(s.target());
         interactions.clear();
     }

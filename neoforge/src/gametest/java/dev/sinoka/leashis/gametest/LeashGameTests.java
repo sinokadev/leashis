@@ -191,6 +191,39 @@ public final class LeashGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void boundTargetCannotBreakOwnFence(GameTestHelper helper) {
+        Fixture f = fixture(helper);
+        boolean allowKnotRemoval = Config.ALLOW_LEASHED_REMOVE_FENCE_KNOT.get();
+        try {
+            f.connect();
+            BlockPos fence = helper.absolutePos(new BlockPos(3, 1, 2));
+            helper.getLevel().setBlockAndUpdate(fence, Blocks.OAK_FENCE.defaultBlockState());
+            LeadItem.bindPlayerMobs(f.holder, helper.getLevel(), fence);
+            var events = new LeashEvents(f.manager);
+            // Fence block protection is mandatory even if knot interaction is allowed.
+            Config.ALLOW_LEASHED_REMOVE_FENCE_KNOT.set(true);
+            for (GameType mode : new GameType[] {GameType.SURVIVAL, GameType.CREATIVE}) {
+                f.target.setGameMode(mode);
+                var own = new net.neoforged.neoforge.event.level.BlockEvent.BreakEvent(
+                        helper.getLevel(), fence, Blocks.OAK_FENCE.defaultBlockState(), f.target);
+                events.onBlockBreak(own);
+                helper.assertTrue(own.isCanceled(), "Bound target cannot break their anchor in " + mode);
+            }
+            helper.assertTrue(!f.manager.shouldProtectFence(f.target, fence.east()), "Other fences remain breakable");
+            var ownerBreak = new net.neoforged.neoforge.event.level.BlockEvent.BreakEvent(
+                    helper.getLevel(), fence, Blocks.OAK_FENCE.defaultBlockState(), f.holder);
+            events.onBlockBreak(ownerBreak);
+            helper.assertTrue(!ownerBreak.isCanceled(), "Other players can break the anchor");
+            f.manager.detach(f.target.getUUID(), DetachReason.MANUAL);
+            helper.assertTrue(!f.manager.shouldProtectFence(f.target, fence), "Release removes fence protection");
+            helper.succeed();
+        } finally {
+            Config.ALLOW_LEASHED_REMOVE_FENCE_KNOT.set(allowKnotRemoval);
+            f.manager.stop();
+        }
+    }
+
+    @GameTest(template = "empty")
     public static void ownerLogoutReleasesEveryTarget(GameTestHelper helper) {
         Fixture f = fixture(helper);
         try {

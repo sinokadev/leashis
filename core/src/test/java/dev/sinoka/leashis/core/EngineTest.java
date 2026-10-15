@@ -32,6 +32,7 @@ public final class EngineTest {
         public boolean proxyValid(UUID id) { return holders.containsKey(id); }
         public UUID holder(UUID id) { return holders.get(id); }
         public void follow(UUID proxy, UUID target) { }
+        public void suspendProxy(UUID id) { holders.remove(id); }
         public void removeProxy(UUID id) { holders.remove(id); removals++; }
         public void refund(UUID target, UUID proxy) { refunds++; }
         public void velocity(UUID id, Vec velocity) {
@@ -81,6 +82,48 @@ public final class EngineTest {
         f=new Fixture(); assert f.attach(false);
         assert f.engine.interact(f.owner,f.stranger,true,false)==ATTACHED;
         f.engine.detachInvolving(f.owner); assert f.refunds==2 && f.removals==2;
+        // Offline targets keep their session without a proxy or an early refund.
+        f=new Fixture(); assert f.attach(false); UUID old=f.proxy();
+        f.engine.logout(f.target); f.actors.remove(f.target);
+        for (int i=0;i<100;i++) f.engine.tick();
+        assert f.engine.isLeashed(f.target) && f.engine.protectKnot(f.target);
+        assert !f.proxyValid(old) && f.refunds==0;
+        assert f.engine.involves(f.owner) && f.engine.involves(f.target);
+        f.position(f.target,0); f.engine.resume(f.target); f.engine.tick();
+        assert f.engine.isLeashed(f.target) && !f.proxy().equals(old) && f.spawns==2 && f.refunds==0;
+        f.engine.resume(f.target); assert f.spawns==2;
+        f.engine.stop(); assert f.refunds==1;
+        // Fence holder identity and creative refund ownership survive reconnects.
+        f=new Fixture(); assert f.attach(true); knot=UUID.randomUUID(); f.position(knot,3);
+        f.holders.put(f.proxy(),knot); f.engine.logout(f.target);
+        f.position(f.target,0); f.engine.resume(f.target);
+        assert knot.equals(f.holder(f.proxy())); f.engine.stop(); assert f.refunds==0;
+        for (int reason=0;reason<5;reason++) {
+            f=new Fixture(); assert f.attach(false); f.engine.logout(f.target);
+            switch(reason) {
+                case 0 -> f.engine.logout(f.owner);
+                case 1 -> { f.settings=new Settings(false,4,10,false); f.engine.tick(); }
+                case 2 -> { f.failSpawn=true; f.engine.resume(f.target); }
+                case 3 -> { f.state(f.target,true,false,false,UUID.randomUUID()); f.engine.resume(f.target); }
+                case 4 -> f.engine.detachInvolving(f.owner);
+            }
+            assert !f.engine.isLeashed(f.target) && f.refunds==1;
+            f.engine.stop(); assert f.refunds==1;
+        }
+        f=new Fixture(); assert f.attach(false); f.engine.logout(f.target);
+        f.engine.stop(); f.engine.stop(); assert f.refunds==1;
+        // Disabled reconnect retention restores the old logout/refund behavior.
+        f=new Fixture(); f.settings=new Settings(true,4,10,false,false); assert f.attach(false);
+        f.engine.logout(f.target); assert !f.engine.isLeashed(f.target) && f.refunds==1;
+        f.engine.resume(f.target); assert f.spawns==1;
+        // Changing policy also releases already suspended sessions exactly once.
+        f=new Fixture(); assert f.attach(false); f.engine.logout(f.target);
+        f.settings=new Settings(true,4,10,false,false); f.engine.tick();
+        assert !f.engine.isLeashed(f.target) && f.refunds==1;
+        f.engine.stop(); assert f.refunds==1;
+        f=new Fixture(); assert f.attach(false); f.engine.logout(f.target);
+        f.settings=new Settings(true,4,10,false,false); f.engine.resume(f.target);
+        assert !f.engine.isLeashed(f.target) && f.refunds==1;
         System.out.println("LeashEngine regression suite passed");
     }
 }

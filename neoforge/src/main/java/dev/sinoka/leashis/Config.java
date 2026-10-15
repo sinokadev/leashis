@@ -18,6 +18,15 @@ public final class Config {
             .comment("Allow leashed players to remove fence knots.")
             .define("allowLeashedRemoveFenceKnot", false);
 
+    public static final ModConfigSpec.BooleanValue KEEP_ON_LOGOUT = BUILDER
+            .comment("Keep the target's leash when they disconnect and reconnect.")
+            .define("keepOnLogout", true);
+
+    public static void setKeepOnLogout(boolean value) throws java.io.IOException {
+        KEEP_ON_LOGOUT.set(value);
+        KEEP_ON_LOGOUT.save();
+    }
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private Config() {

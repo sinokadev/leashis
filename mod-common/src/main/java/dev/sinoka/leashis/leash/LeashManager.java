@@ -18,7 +18,7 @@ public final class LeashManager implements LeashEngine.Port {
     private final Map<UUID, Entity> entities = new HashMap<>();
     private final Map<UUID, LeashProxyEntity> proxies = new HashMap<>();
     private final LeashEngine engine = new LeashEngine(this, () -> new Settings(Config.ENABLED.get(),
-            Config.DISTANCE_MIN.get(), Config.DISTANCE_MAX.get(), Config.ALLOW_LEASHED_REMOVE_FENCE_KNOT.get()));
+            Config.DISTANCE_MIN.get(), Config.DISTANCE_MAX.get(), Config.ALLOW_LEASHED_REMOVE_FENCE_KNOT.get(), Config.KEEP_ON_LOGOUT.get()));
 
     public LeashSession getSession(UUID id) {
         return engine.sessions().stream().filter(s -> s.target().equals(id))
@@ -28,6 +28,11 @@ public final class LeashManager implements LeashEngine.Port {
     public boolean isLeashed(UUID id) { return engine.isLeashed(id); }
     public boolean shouldProtectKnot(ServerPlayer p, Entity e) {
         return e instanceof LeashFenceKnotEntity && engine.protectKnot(p.getUUID());
+    }
+    public boolean shouldProtectFence(ServerPlayer player, net.minecraft.core.BlockPos pos) {
+        var session = getSession(player.getUUID());
+        return session != null && session.holder() instanceof LeashFenceKnotEntity knot
+                && knot.level() == player.level() && knot.getPos().equals(pos);
     }
     public boolean tryInteract(ServerPlayer actor, ServerPlayer target, InteractionHand hand) {
         remember(actor); remember(target);
@@ -45,12 +50,10 @@ public final class LeashManager implements LeashEngine.Port {
     }
     public void tick(MinecraftServer server) {
         engine.advanceTo(server.overworld().getGameTime()); engine.tick();
-        Set<UUID> live = new HashSet<>();
-        for (var s : engine.sessions()) {
-            live.add(s.target()); UUID holder = holder(s.proxy()); if (holder != null) live.add(holder);
-        }
-        entities.keySet().retainAll(live);
+        entities.keySet().removeIf(id -> !engine.involves(id));
     }
+    public void logout(ServerPlayer player) { engine.logout(player.getUUID()); }
+    public void login(ServerPlayer player) { remember(player); engine.resume(player.getUUID()); }
     public void detach(UUID id, DetachReason reason) { engine.detach(id); }
     public void detachInvolving(UUID id, DetachReason reason) { engine.detachInvolving(id); }
     public void stop() { engine.stop(); entities.clear(); }
@@ -81,6 +84,7 @@ public final class LeashManager implements LeashEngine.Port {
         return h == null ? null : h.getUUID();
     }
     @Override public void follow(UUID proxy, UUID target) { proxies.get(proxy).followTarget(); }
+    @Override public void suspendProxy(UUID id) { var p = proxies.get(id); if (p != null) p.removeProxy(); }
     @Override public void removeProxy(UUID id) { var p = proxies.remove(id); if (p != null) p.removeProxy(); }
     @Override public void refund(UUID target, UUID proxy) { proxies.get(proxy).spawnAtLocation(Items.LEAD); }
     @Override public void velocity(UUID target, Vec velocity) {

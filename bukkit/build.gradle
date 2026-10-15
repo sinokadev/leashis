@@ -10,4 +10,7 @@ tasks.named('jar') {
     from project(':core').sourceSets.main.output
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
-processResources { filesMatching('plugin.yml') { expand(version: project.version) } }
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('plugin.yml') { expand(version: project.version) }
+}

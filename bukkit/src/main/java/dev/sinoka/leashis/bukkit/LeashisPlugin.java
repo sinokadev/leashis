@@ -38,11 +38,30 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     private void loadSettings() {
         settings = new Settings(getConfig().getBoolean("enabled", true),
                 getConfig().getInt("distanceMin", 4), getConfig().getInt("distanceMax", 10),
-                getConfig().getBoolean("allowLeashedRemoveFenceKnot", false));
+                getConfig().getBoolean("allowLeashedRemoveFenceKnot", false),
+                getConfig().getBoolean("keepOnLogout", true));
     }
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.hasPermission("leashis.admin")) { sender.sendMessage("이 명령어를 사용할 권한이 없습니다."); return true; }
+        if (args.length >= 1 && args[0].equalsIgnoreCase("reconnect")) {
+            if (args.length > 2) return false;
+            if (args.length == 2) {
+                if (!args[1].equalsIgnoreCase("true") && !args[1].equalsIgnoreCase("false")) return false;
+                getConfig().set("keepOnLogout", Boolean.parseBoolean(args[1]));
+                saveConfig(); loadSettings(); engine.tick();
+            }
+            sender.sendMessage("재접속 시 묶임 유지: " + (settings.keepOnLogout() ? "켜짐 (true)" : "꺼짐 (false)"));
+            return true;
+        }
         if (args.length != 1 || !args[0].equalsIgnoreCase("reload")) return false;
         reloadConfig(); loadSettings(); engine.tick(); sender.sendMessage("Leashis 설정을 다시 불러왔습니다."); return true;
+    }
+    @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (!sender.hasPermission("leashis.admin")) return List.of();
+        List<String> options = args.length == 1 ? List.of("reload", "reconnect")
+                : args.length == 2 && args[0].equalsIgnoreCase("reconnect") ? List.of("true", "false") : List.of();
+        String prefix = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
+        return options.stream().filter(option -> option.startsWith(prefix)).toList();
     }
     private boolean marked(Entity e) { return e.getPersistentDataContainer().has(proxyKey, PersistentDataType.BYTE); }
     @EventHandler public void onChunk(ChunkLoadEvent e) {
@@ -101,6 +120,17 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
                 && engine.protectKnot(p.getUniqueId())) e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    public void onBlockBreak(org.bukkit.event.block.BlockBreakEvent e) {
+        for (LeashEngine.Session session : engine.sessions()) {
+            if (!session.target().equals(e.getPlayer().getUniqueId())) continue;
+            UUID holderId = holder(session.proxy());
+            Entity anchor = holderId == null ? null : getServer().getEntity(holderId);
+            if (anchor instanceof LeashHitch && anchor.getWorld().equals(e.getBlock().getWorld())
+                    && anchor.getLocation().getBlock().equals(e.getBlock())) e.setCancelled(true);
+            return;
+        }
+    }
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onLeash(PlayerLeashEntityEvent e) { if (marked(e.getEntity())) e.setCancelled(true); }
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onUnleash(PlayerUnleashEntityEvent e) { if (marked(e.getEntity())) e.setCancelled(true); }
@@ -124,7 +154,8 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onPortal(PlayerPortalEvent e) { onTeleport(e); }
     @EventHandler public void onDeath(PlayerDeathEvent e) { engine.detachInvolving(e.getEntity().getUniqueId()); }
-    @EventHandler public void onQuit(PlayerQuitEvent e) { engine.detachInvolving(e.getPlayer().getUniqueId()); }
+    @EventHandler public void onQuit(PlayerQuitEvent e) { engine.logout(e.getPlayer().getUniqueId()); }
+    @EventHandler public void onJoin(PlayerJoinEvent e) { engine.resume(e.getPlayer().getUniqueId()); }
     @EventHandler public void onWorld(PlayerChangedWorldEvent e) { engine.detachInvolving(e.getPlayer().getUniqueId()); }
     @Override public LeashEngine.Actor actor(UUID id) {
         Entity entity = getServer().getEntity(id);
@@ -169,6 +200,10 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
                 if (holder != null && holder.isValid()) turtle.setLeashHolder(holder);
             }
         }
+    }
+    @Override public void suspendProxy(UUID id) {
+        Turtle proxy = proxies.get(id);
+        if (proxy != null) { proxy.setLeashHolder(null); proxy.remove(); }
     }
     @Override public void removeProxy(UUID id) {
         Turtle proxy = proxies.remove(id); targets.remove(id); leashHolders.remove(id); distanceUnlinks.remove(id);

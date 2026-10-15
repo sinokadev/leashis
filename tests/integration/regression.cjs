@@ -8,7 +8,7 @@ const consoleCommand = s => console.log('CONSOLE '+s);
 let failure = false;
 function connect(name) {
   const c=protocol.createClient({host:'127.0.0.1',port,username:name,version,auth:'offline'});
-  c.entities=new Map();c.items=[];c.motion=[];c.leashes=[];c.removed=[];c.itemCount=0;c.respawns=0;
+  c.entities=new Map();c.blocks=new Map();c.items=[];c.motion=[];c.leashes=[];c.removed=[];c.itemCount=0;c.respawns=0;
   c.on('error',e=>{console.error(name,e);failure=true});
   c.on('kick_disconnect',p=>{console.error(name,'kicked',p);failure=true});
   c.on('login',p=>{c.entityId=p.entityId});
@@ -16,6 +16,15 @@ function connect(name) {
   c.on('ping',p=>c.write('pong',{id:p.id}));
   if(process.env.LEASHIS_PROTOCOL_DEBUG)c.on('packet',(p,m)=>{if(!c.position)console.log('PACKET',name,c.state,m.name,p.channel||'',p.id??'')});
   c.on('state',state=>{if(state==='configuration')setImmediate(()=>c.write('custom_payload',{channel:'minecraft:brand',data:Buffer.from([7,...Buffer.from('vanilla')])}));});
+  c.on('multi_block_change',p=>{
+    for(const record of p.records){
+      const x=p.chunkCoordinates.x*16+((record>>>8)&15);
+      const y=p.chunkCoordinates.y*16+(record&15);
+      const z=p.chunkCoordinates.z*16+((record>>>4)&15);
+      c.blocks.set(`${x},${y},${z}`,Math.floor(record/4096));
+    }
+  });
+  c.on('block_change',p=>c.blocks.set(`${p.location.x},${p.location.y},${p.location.z}`,p.type));
   c.on('spawn_entity',p=>{c.entities.set(p.entityId,p);if(p.type===data.entitiesByName.item.id)c.items.push(p)});
   c.on('entity_destroy',p=>{for(const id of p.entityIds){c.removed.push(id);c.entities.delete(id)}});
   c.on('entity_velocity',p=>c.motion.push(p));
@@ -37,11 +46,12 @@ function click(owner,id){
  owner.write('use_entity',{target:id,mouse:0,hand:0,sneaking:false});
 }
 (async()=>{
- const owner=connect('LeashOwner'),target=connect('LeashTarget');
+ const owner=connect('LeashOwner');let target=connect('LeashTarget');
  try {
   for(let i=0;i<100&&(!owner.position||!target.position);i++)await delay(100);
   assert(owner.position&&target.position,'Both vanilla clients must join');
   console.log('CLIENT vanilla clients joined');
+  consoleCommand('leashis reconnect true');consoleCommand('leashis reconnect');
   consoleCommand('gamerule doMobSpawning false');consoleCommand('gamerule doDaylightCycle false');
   consoleCommand('fill -15 79 -15 15 79 15 stone');
   consoleCommand('gamemode survival LeashOwner');consoleCommand('gamemode survival LeashTarget');
@@ -85,11 +95,32 @@ function click(owner,id){
   assert(knot,'Fence transfer creates a vanilla knot');
   const tied=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
   assert(owner.leashes.some(l=>l.entityId===tied.entityId&&l.vehicleId===knot.entityId),'Proxy holder changes to fence knot');
+  consoleCommand('gamemode creative LeashTarget');consoleCommand('setblock 3 80 0 minecraft:oak_fence');await delay(300);
+  target.write('block_dig',{status:0,location:{x:2,y:80,z:0},face:1,sequence:1});await delay(500);
+  assert.equal(data.blocksByStateId[target.blocks.get('2,80,0')]?.name,'oak_fence','Bound target cannot break own fence in creative');
+  assert(owner.entities.has(tied.entityId),'Blocked fence break preserves leash');
+  target.write('block_dig',{status:0,location:{x:3,y:80,z:0},face:1,sequence:2});await delay(500);
+  assert.equal(target.blocks.get('3,80,0'),data.blocksByName.air.defaultState,'Bound target can break an unrelated fence');
+  consoleCommand('gamemode survival LeashTarget');await delay(300);
+  drops=owner.items.length;target.end();await delay(700);
+  assert(!owner.entities.has(tied.entityId),'Offline target removes old fence proxy');
+  assert.equal(owner.items.length,drops,'Target logout does not refund fence lead');
+  target=connect('LeashTarget');
+  for(let i=0;i<100&&!target.position;i++)await delay(100);
+  assert(target.position,'Fence target rejoins');await delay(700);
+  const restored=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  assert(restored,'Fence proxy is restored after target reconnect');
+  assert(owner.leashes.some(l=>l.entityId===restored.entityId&&l.vehicleId===knot.entityId),'Reconnect preserves fence holder');
+  assert.equal(owner.items.length,drops,'Fence reconnect does not refund a lead');
   click(target,knot.entityId);target.write('use_entity',{target:knot.entityId,mouse:1,sneaking:false});await delay(500);
-  assert(owner.entities.has(knot.entityId)&&owner.entities.has(tied.entityId),'Bound player cannot remove knot');
+  assert(owner.entities.has(knot.entityId)&&owner.entities.has(restored.entityId),'Bound player cannot remove knot');
   click(owner,knot.entityId);await delay(500);
-  assert(!owner.entities.has(tied.entityId),'Unbound player can remove knot and detach proxy');
-  console.log('CLIENT fence transfer, knot protection, dimension blocking PASS');
+  assert(!owner.entities.has(restored.entityId),'Unbound player can remove knot and detach proxy');
+  consoleCommand('gamemode creative LeashTarget');await delay(300);
+  target.write('block_dig',{status:0,location:{x:2,y:80,z:0},face:1,sequence:3});await delay(500);
+  assert.equal(target.blocks.get('2,80,0'),data.blocksByName.air.defaultState,'Released target can break former anchor');
+  consoleCommand('gamemode survival LeashTarget');await delay(300);
+  console.log('CLIENT fence transfer, knot protection, own fence block protection, dimension blocking PASS');
   consoleCommand('setblock 2 80 0 minecraft:air');
   if(process.env.LEASHIS_TEST_CONFIG) {
     const fs=require('node:fs');
@@ -103,6 +134,30 @@ function click(owner,id){
     fs.writeFileSync(process.env.LEASHIS_TEST_CONFIG,'enabled: true\ndistanceMin: 4\ndistanceMax: 10\nallowLeashedRemoveFenceKnot: false\n');consoleCommand('leashis reload');await delay(300);
     console.log('CLIENT custom distance maximum and reload PASS');
   }
+  consoleCommand('clear LeashOwner');consoleCommand('give LeashOwner minecraft:lead 3');await delay(500);
+  click(owner,target.entityId);await delay(500);
+  count=owner.itemCount;drops=owner.items.length;
+  target.end();await delay(700);
+  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Target logout removes old proxy');
+  assert.equal(owner.items.length,drops,'Target logout does not refund a lead');
+  target=connect('LeashTarget');
+  for(let i=0;i<100&&!target.position;i++)await delay(100);
+  assert(target.position,'Held target rejoins');await delay(700);
+  const rejoined=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.turtle.id);
+  assert(rejoined,'Proxy restored after target reconnect');
+  assert(owner.leashes.some(l=>l.entityId===rejoined.entityId&&l.vehicleId===owner.entityId),'Reconnect restores player holder');
+  assert.equal(owner.itemCount,count,'Reconnect does not consume another lead');
+  assert.equal(owner.items.length,drops,'Reconnect does not refund a lead');
+  console.log('CLIENT target reconnect and fence reconnect PASS');
+  consoleCommand('leashis reconnect false');await delay(300);
+  drops=owner.items.length;target.end();await delay(700);
+  assert.equal(owner.items.length,drops+1,'Disabled reconnect retention refunds exactly one lead');
+  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Disabled retention removes proxy');
+  target=connect('LeashTarget');
+  for(let i=0;i<100&&!target.position;i++)await delay(100);
+  assert(target.position,'Released target rejoins');await delay(700);
+  assert(![...owner.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Disabled retention does not restore proxy');
+  console.log('CLIENT reconnect command true/false policy PASS');
   consoleCommand('clear LeashOwner');consoleCommand('give LeashOwner minecraft:lead 3');await delay(500);
   click(owner,target.entityId);await delay(500);
   assert([...target.entities.values()].some(e=>e.type===data.entitiesByName.turtle.id),'Session exists before holder logout');
