@@ -18,7 +18,7 @@ public final class LeashisFabric implements DedicatedServerModInitializer {
         catch (Exception e) { throw new IllegalStateException("Cannot load Leashis settings", e); }
         manager = new LeashManager();
         net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback.EVENT.register(
-                (dispatcher, registry, environment) -> LeashCommands.register(dispatcher));
+                (dispatcher, registry, environment) -> LeashCommands.register(dispatcher, manager));
         ServerLifecycleEvents.SERVER_STARTED.register(server -> manager.clearStaleTeam(server));
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> manager.stop());
         ServerTickEvents.END_SERVER_TICK.register(server -> manager.tick(server));

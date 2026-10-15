@@ -8,7 +8,7 @@ const consoleCommand = s => console.log('CONSOLE '+s);
 let failure = false;
 function connect(name) {
   const c=protocol.createClient({host:'127.0.0.1',port,username:name,version,auth:'offline'});
-  c.entities=new Map();c.blocks=new Map();c.items=[];c.motion=[];c.leashes=[];c.removed=[];c.itemCount=0;c.respawns=0;
+  c.entities=new Map();c.blocks=new Map();c.messages=[];c.items=[];c.motion=[];c.leashes=[];c.removed=[];c.itemCount=0;c.respawns=0;
   c.on('error',e=>{console.error(name,e);failure=true});
   c.on('kick_disconnect',p=>{console.error(name,'kicked',p);failure=true});
   c.on('login',p=>{c.entityId=p.entityId});
@@ -27,6 +27,7 @@ function connect(name) {
   c.on('block_change',p=>c.blocks.set(`${p.location.x},${p.location.y},${p.location.z}`,p.type));
   c.on('spawn_entity',p=>{c.entities.set(p.entityId,p);if(p.type===data.entitiesByName.item.id)c.items.push(p)});
   c.on('entity_destroy',p=>{for(const id of p.entityIds){c.removed.push(id);c.entities.delete(id)}});
+  c.on('system_chat',p=>c.messages.push(JSON.stringify(p)));
   c.on('entity_velocity',p=>c.motion.push(p));
   c.on('attach_entity',p=>c.leashes.push(p));
   function inspect(item){if(item && item.itemId===data.itemsByName.lead.id)c.itemCount=item.itemCount;}
@@ -40,6 +41,9 @@ function connect(name) {
   c.on('end',()=>clearInterval(c.timer));
   c.timer=setInterval(()=>{if(c.state==='play' && c.position)c.write('flying',{onGround:true})},100);
   return c;
+}
+function fireArrow(){
+ consoleCommand('summon minecraft:arrow 2.5 80.7 -2 {Motion:[0.0d,0.0d,1.0d],NoGravity:1b,pickup:0b}');
 }
 function click(owner,id){
  owner.write('use_entity',{target:id,mouse:2,x:0,y:1,z:0,hand:0,sneaking:false});
@@ -55,7 +59,7 @@ function click(owner,id){
   assert(owner.position&&target.position,'Both vanilla clients must join');
   console.log('CLIENT vanilla clients joined');
   consoleCommand('leashis reconnect true');consoleCommand('leashis reconnect');
-  consoleCommand('leashis death true');consoleCommand('leashis death');
+  consoleCommand('leashis death true');consoleCommand('leashis death');consoleCommand('deop LeashOwner');
   consoleCommand('gamerule doMobSpawning false');consoleCommand('gamerule doDaylightCycle false');
   consoleCommand('fill -15 79 -15 15 79 15 stone');
   consoleCommand('gamemode survival LeashOwner');consoleCommand('gamemode survival LeashTarget');
@@ -68,6 +72,18 @@ function click(owner,id){
   const proxy=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.rabbit.id);
   assert(proxy,'Vanilla rabbit proxy is visible to vanilla protocol');
   assert(owner.leashes.some(l=>l.entityId===proxy.entityId && l.vehicleId===owner.entityId),'Leash packet attaches proxy to holder');
+  consoleCommand('tp LeashTarget 3 80 0');await delay(400);
+  target.motion=[];owner.messages=[];owner.chat('/l');await delay(300);
+  assert(owner.messages.some(m=>m.includes('목줄을 당깁니다.')),'Non-OP player can use short pull command');
+  assert(target.motion.some(p=>p.entityId===target.entityId&&p.velocity.x<0),'Manual reel pulls within normal slack range');
+  owner.messages=[];owner.chat('/leashis pull');await delay(200);
+  assert(owner.messages.some(m=>m.includes('잠시 후 다시')),'Short and full commands share cooldown');
+  await delay(1000);owner.messages=[];owner.chat('/leashis pull');await delay(300);
+  assert(owner.messages.some(m=>m.includes('목줄을 당깁니다.')),'Non-OP player can use full pull command after cooldown');
+  owner.chat('/leashis death false');await delay(200); // Administrative policies must remain protected.
+  assert.equal(owner.itemCount,2,'Manual reel does not consume another lead');
+  consoleCommand('tp LeashTarget 1 80 0');await delay(400);
+  console.log('CLIENT player pull command, slack distance and cooldown PASS');
   await delay(1100);click(owner,target.entityId);await delay(500);
   assert(owner.removed.includes(proxy.entityId),'Manual release removes proxy');
   assert(owner.itemCount>=2 && owner.itemCount<=3,'Manual release does not charge another lead; refund may be picked up');
@@ -100,6 +116,11 @@ function click(owner,id){
   assert(knot,'Fence transfer creates a vanilla knot');
   let tied=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.rabbit.id);
   assert(owner.leashes.some(l=>l.entityId===tied.entityId&&l.vehicleId===knot.entityId),'Proxy holder changes to fence knot');
+  fireArrow();await delay(700);
+  assert(owner.entities.has(knot.entityId)&&owner.entities.has(tied.entityId),'Arrow cannot break occupied knot or leash');
+  consoleCommand('kill @e[type=minecraft:arrow]');await delay(200);
+  owner.messages=[];owner.chat('/l');await delay(200);
+  assert(owner.messages.some(m=>m.includes('직접 끌고 있는 플레이어가 없습니다.')),'Fence-bound targets cannot be reeled by former holder');
   // Death must not consume/refund the lead or overwrite the player's real spawn.
   consoleCommand('spawnpoint LeashTarget 10 80 10');consoleCommand('clear LeashTarget');
   consoleCommand('leashis reconnect false');await delay(300);
@@ -162,6 +183,9 @@ function click(owner,id){
   drops=owner.items.length;target.end();await delay(700);
   assert(!owner.entities.has(tied.entityId),'Offline target removes old fence proxy');
   assert.equal(owner.items.length,drops,'Target logout does not refund fence lead');
+  fireArrow();await delay(700);
+  assert(owner.entities.has(knot.entityId),'Arrow cannot remove knot while target is offline');
+  consoleCommand('kill @e[type=minecraft:arrow]');await delay(200);
   consoleCommand('setblock 2 80 -1 minecraft:piston[facing=south]');
   consoleCommand('setblock 2 80 -2 minecraft:redstone_block');await delay(600);
   assert.equal(data.blocksByStateId[owner.blocks.get('2,80,0')]?.name,'oak_fence','Offline target still protects fence from piston');
@@ -177,6 +201,14 @@ function click(owner,id){
   assert(owner.entities.has(knot.entityId)&&owner.entities.has(restored.entityId),'Bound player cannot remove knot');
   click(owner,knot.entityId);await delay(500);
   assert(!owner.entities.has(restored.entityId),'Unbound player can remove knot and detach proxy');
+  // The same shot must still remove an empty knot, proving that it hits the knot.
+  consoleCommand('summon minecraft:leash_knot 2.5 80.375 0.5 {TileX:2,TileY:80,TileZ:0}');await delay(300);
+  const emptyKnot=[...owner.entities.values()].find(e=>e.type===data.entitiesByName.leash_knot.id);
+  assert(emptyKnot,'Arrow control fixture has an unoccupied knot');
+  fireArrow();await delay(700);
+  assert(!owner.entities.has(emptyKnot.entityId),'Unoccupied knot retains vanilla arrow damage');
+  consoleCommand('kill @e[type=minecraft:arrow]');await delay(200);
+  console.log('CLIENT projectile protection on occupied and offline knots, vanilla empty knot control PASS');
   consoleCommand('setblock 2 80 -1 minecraft:piston[facing=south]');
   consoleCommand('setblock 2 80 -2 minecraft:redstone_block');await delay(600);
   assert.equal(data.blocksByStateId[owner.blocks.get('2,80,1')]?.name,'oak_fence','Released fence becomes movable again');

@@ -165,6 +165,46 @@ public final class EngineTest {
             assert !f.engine.isLeashed(f.target) && f.refunds==1 && f.spawns==1;
             f.engine.stop(); assert f.refunds==1;
         }
+        // Active reeling follows the actual rope vector, converges and brakes at one block.
+        f=new Fixture(); f.position(f.owner,0);
+        f.actors.put(f.target,new LeashEngine.Actor(WORLD,new Vec(3,0,4),Vec.ZERO,true,false,false));
+        assert f.attach(false);
+        assert f.engine.pull(f.stranger)==LeashEngine.PullResult.NO_TARGET;
+        assert f.engine.pull(f.owner)==LeashEngine.PullResult.STARTED;
+        assert f.engine.pull(f.owner)==LeashEngine.PullResult.COOLDOWN;
+        f.engine.tick(); Vec reel=f.actor(f.target).velocity();
+        assert reel.x()<0 && reel.z()<0 && Math.abs(reel.x()/reel.z()-0.75)<1e-9 && reel.length()<=0.8000001;
+        for (int i=0;i<35;i++) {
+            var actor=f.actor(f.target);
+            f.actors.put(f.target,new LeashEngine.Actor(WORLD,actor.position().add(actor.velocity()),actor.velocity(),true,false,false));
+            f.engine.tick();
+        }
+        double gap=f.actor(f.target).position().length();
+        assert gap>=0.999999 && gap<=1.05 && f.actor(f.target).velocity().length()<1e-9;
+        assert f.refunds==0 && f.spawns==1 && f.engine.isLeashed(f.target);
+        // Reeling works inside the ordinary slack range and includes multiple held targets.
+        f=new Fixture(); f.position(f.owner,0); f.position(f.target,3); f.position(f.stranger,2);
+        assert f.attach(false) && f.engine.attach(f.owner,f.stranger,true);
+        assert f.engine.pull(f.owner)==LeashEngine.PullResult.STARTED; f.engine.tick();
+        assert f.actor(f.target).velocity().x()<0 && f.actor(f.stranger).velocity().x()<0;
+        // Fence transfers cancel an active reel and cannot be reeled by the former holder.
+        knot=UUID.randomUUID(); f.position(knot,2); f.holders.put(f.proxy(),knot);
+        f.position(f.target,3); f.position(f.stranger,2);
+        for (var session:f.engine.sessions()) f.holders.put(session.proxy(),knot);
+        f.engine.tick(); assert f.actor(f.target).velocity().equals(Vec.ZERO) && f.actor(f.stranger).velocity().equals(Vec.ZERO);
+        f.engine.advanceTo(21); assert f.engine.pull(f.owner)==LeashEngine.PullResult.NO_TARGET;
+        // Already close players receive no launch; expiry prevents pulling forever through a wall.
+        f=new Fixture(); assert f.attach(false); assert f.engine.pull(f.owner)==LeashEngine.PullResult.STARTED;
+        f.engine.tick(); assert f.actor(f.target).velocity().equals(Vec.ZERO);
+        f=new Fixture(); f.position(f.owner,0); f.position(f.target,3); assert f.attach(false);
+        assert f.engine.pull(f.owner)==LeashEngine.PullResult.STARTED;
+        for (int i=0;i<61;i++) { f.position(f.target,3); f.engine.tick(); }
+        assert f.actor(f.target).velocity().equals(Vec.ZERO);
+        // Reconnection creates a new session without carrying the old reel over.
+        f=new Fixture(); f.position(f.owner,0); f.position(f.target,3); assert f.attach(false);
+        assert f.engine.pull(f.owner)==LeashEngine.PullResult.STARTED;
+        f.engine.logout(f.target); f.engine.resume(f.target); f.engine.tick();
+        assert f.actor(f.target).velocity().equals(Vec.ZERO);
         System.out.println("LeashEngine regression suite passed");
     }
 }

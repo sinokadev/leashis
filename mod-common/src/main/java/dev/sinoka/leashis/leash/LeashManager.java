@@ -29,6 +29,12 @@ public final class LeashManager implements LeashEngine.Port {
     public boolean shouldProtectKnot(ServerPlayer p, Entity e) {
         return e instanceof LeashFenceKnotEntity && engine.protectKnot(p.getUUID());
     }
+    public boolean shouldProtectProjectile(Entity entity, net.minecraft.world.damagesource.DamageSource source) {
+        return entity instanceof LeashFenceKnotEntity
+                && (source.getDirectEntity() instanceof net.minecraft.world.entity.projectile.Projectile
+                    || source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE))
+                && engine.holders().contains(entity.getUUID());
+    }
     public boolean shouldProtectFence(ServerPlayer player, net.minecraft.core.BlockPos pos) {
         var session = getSession(player.getUUID());
         return session != null && session.holder() instanceof LeashFenceKnotEntity knot
@@ -51,6 +57,10 @@ public final class LeashManager implements LeashEngine.Port {
         if (result == LeashEngine.Interaction.ALREADY_BOUND)
             actor.sendSystemMessage(Component.literal("이미 다른 곳에 연결된 플레이어입니다."));
         return result != LeashEngine.Interaction.PASS;
+    }
+    public LeashEngine.PullResult pull(ServerPlayer player) {
+        remember(player); engine.advanceTo(player.level().getGameTime());
+        return engine.pull(player.getUUID());
     }
     public boolean attach(ServerPlayer holder, ServerPlayer target) {
         remember(holder); remember(target); engine.advanceTo(holder.level().getGameTime());

@@ -228,6 +228,43 @@ public final class LeashGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void arrowsCannotBreakOccupiedKnot(GameTestHelper helper) {
+        Fixture f = fixture(helper);
+        LeashManager previous = dev.sinoka.leashis.Leashis.manager;
+        boolean allowRemoval = Config.ALLOW_LEASHED_REMOVE_FENCE_KNOT.get();
+        boolean keepOnLogout = Config.KEEP_ON_LOGOUT.get(), keepOnDeath = Config.KEEP_ON_DEATH.get();
+        var arrow = net.minecraft.world.entity.EntityType.ARROW.create(helper.getLevel());
+        try {
+            dev.sinoka.leashis.Leashis.manager = f.manager;
+            Config.ALLOW_LEASHED_REMOVE_FENCE_KNOT.set(true);
+            Config.KEEP_ON_LOGOUT.set(true); Config.KEEP_ON_DEATH.set(true);
+            f.connect();
+            BlockPos fence = helper.absolutePos(new BlockPos(3, 1, 2));
+            helper.getLevel().setBlockAndUpdate(fence, Blocks.OAK_FENCE.defaultBlockState());
+            LeadItem.bindPlayerMobs(f.holder, helper.getLevel(), fence);
+            var knot = (LeashFenceKnotEntity)f.manager.getSession(f.target.getUUID()).holder();
+            var source = helper.getLevel().damageSources().arrow(arrow, f.holder);
+            helper.assertTrue(!knot.hurt(source, 2) && !knot.isRemoved(), "Occupied knot rejects arrows from holder");
+            f.manager.logout(f.target);
+            helper.assertTrue(!knot.hurt(source, 2) && !knot.isRemoved(), "Offline target's knot rejects arrows");
+            f.manager.login(f.target);
+            helper.assertTrue(!f.manager.shouldProtectProjectile(knot, helper.getLevel().damageSources().playerAttack(f.holder)),
+                    "Manual release behavior is not changed by projectile protection");
+            f.manager.death(f.target);
+            helper.assertTrue(!knot.hurt(source, 2) && !knot.isRemoved(), "Respawn waiting knot rejects arrows");
+            f.manager.detach(f.target.getUUID(), DetachReason.MANUAL);
+            helper.assertTrue(knot.hurt(source, 2) && knot.isRemoved(), "Unoccupied knots keep vanilla arrow behavior");
+            helper.succeed();
+        } finally {
+            arrow.discard();
+            Config.ALLOW_LEASHED_REMOVE_FENCE_KNOT.set(allowRemoval);
+            Config.KEEP_ON_LOGOUT.set(keepOnLogout); Config.KEEP_ON_DEATH.set(keepOnDeath);
+            f.manager.stop();
+            dev.sinoka.leashis.Leashis.manager = previous;
+        }
+    }
+
+    @GameTest(template = "empty")
     public static void ownerLogoutReleasesEveryTarget(GameTestHelper helper) {
         Fixture f = fixture(helper);
         try {

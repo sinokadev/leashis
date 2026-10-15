@@ -28,7 +28,12 @@ for file in (root/'mod-common/src/main/java').rglob('*.java'):
   if at('26.2'):s=s.replace('EntityType.RABBIT','net.minecraft.world.entity.EntityTypes.RABBIT')
   if at('26.3'):s=s.replace('setInvulnerable(true)','setPermanentlyInvulnerable(true)')
   if at('1.21.11'):s=s.replace('net.minecraft.world.entity.animal.Rabbit','net.minecraft.world.entity.animal.rabbit.Rabbit')
- if file.name=='PistonMixin.java' and a.loader=='fabric':
+ if file.name=='KnotDamageMixin.java':
+  if not at('1.21'):s=s.replace('BlockAttachedEntity', 'HangingEntity')
+  if at('1.21.2'):
+   s=s.replace('@Inject(method = "hurt",', '@Inject(method = "hurtServer",')
+   s=s.replace('leashis$protectProjectile(DamageSource source,', 'leashis$protectProjectile(net.minecraft.server.level.ServerLevel level, DamageSource source,')
+ if file.name in ['PistonMixin.java','KnotDamageMixin.java'] and a.loader=='fabric':
   s=s.replace('import dev.sinoka.leashis.Leashis;', 'import dev.sinoka.leashis.fabric.LeashisFabric;').replace('Leashis.manager', 'LeashisFabric.manager')
  if file.name=='LeashCommands.java' and at('1.21.11'):
   s=s.replace('.requires(source -> source.hasPermission(2))', '.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))')

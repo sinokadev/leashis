@@ -111,7 +111,7 @@ public final class LeashEvents {
 
     @SubscribeEvent
     public void onRegisterCommands(net.neoforged.neoforge.event.RegisterCommandsEvent event) {
-        LeashCommands.register(event.getDispatcher());
+        LeashCommands.register(event.getDispatcher(), manager);
     }
 
     @SubscribeEvent

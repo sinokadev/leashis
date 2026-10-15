@@ -43,6 +43,8 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
                 getConfig().getBoolean("keepOnLogout", true), getConfig().getBoolean("keepOnDeath", true));
     }
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("l")) return args.length == 0 && pull(sender);
+        if (args.length == 1 && args[0].equalsIgnoreCase("pull")) return pull(sender);
         if (!sender.hasPermission("leashis.admin")) { sender.sendMessage("이 명령어를 사용할 권한이 없습니다."); return true; }
         if (args.length >= 1 && (args[0].equalsIgnoreCase("reconnect") || args[0].equalsIgnoreCase("death"))) {
             boolean death = args[0].equalsIgnoreCase("death");
@@ -59,10 +61,25 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
         if (args.length != 1 || !args[0].equalsIgnoreCase("reload")) return false;
         reloadConfig(); loadSettings(); engine.tick(); sender.sendMessage("Leashis 설정을 다시 불러왔습니다."); return true;
     }
+    private boolean pull(CommandSender sender) {
+        if (!sender.hasPermission("leashis.pull")) { sender.sendMessage("이 명령어를 사용할 권한이 없습니다."); return true; }
+        if (!(sender instanceof Player player)) { sender.sendMessage("플레이어만 사용할 수 있습니다."); return true; }
+        sender.sendMessage(switch (engine.pull(player.getUniqueId())) {
+            case STARTED -> "목줄을 당깁니다.";
+            case NO_TARGET -> "직접 끌고 있는 플레이어가 없습니다.";
+            case COOLDOWN -> "잠시 후 다시 당길 수 있습니다.";
+        });
+        return true;
+    }
     @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!sender.hasPermission("leashis.admin")) return List.of();
-        List<String> options = args.length == 1 ? List.of("reload", "reconnect", "death")
-                : args.length == 2 && (args[0].equalsIgnoreCase("reconnect") || args[0].equalsIgnoreCase("death")) ? List.of("true", "false") : List.of();
+        if (command.getName().equalsIgnoreCase("l")) return List.of();
+        List<String> options = new ArrayList<>();
+        if (args.length == 1) {
+            if (sender.hasPermission("leashis.pull")) options.add("pull");
+            if (sender.hasPermission("leashis.admin")) options.addAll(List.of("reload", "reconnect", "death"));
+        } else if (args.length == 2 && sender.hasPermission("leashis.admin")
+                && (args[0].equalsIgnoreCase("reconnect") || args[0].equalsIgnoreCase("death")))
+            options.addAll(List.of("true", "false"));
         String prefix = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
         return options.stream().filter(option -> option.startsWith(prefix)).toList();
     }
@@ -114,12 +131,14 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     public void onDamage(EntityDamageEvent e) { if (marked(e.getEntity())) e.setCancelled(true); }
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onKnotDamage(EntityDamageByEntityEvent e) {
-        if (e.getEntity() instanceof LeashHitch && e.getDamager() instanceof Player p
+        if (protectsProjectileKnot(e.getEntity(), e.getDamager())
+                || e.getEntity() instanceof LeashHitch && e.getDamager() instanceof Player p
                 && engine.protectKnot(p.getUniqueId())) e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onKnotBreak(HangingBreakByEntityEvent e) {
-        if (e.getEntity() instanceof LeashHitch && e.getRemover() instanceof Player p
+        if (protectsProjectileKnot(e.getEntity(), e.getRemover())
+                || e.getEntity() instanceof LeashHitch && e.getRemover() instanceof Player p
                 && engine.protectKnot(p.getUniqueId())) e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
@@ -132,6 +151,14 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
                     && anchor.getLocation().getBlock().equals(e.getBlock())) e.setCancelled(true);
             return;
         }
+    }
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    public void onProjectileHit(ProjectileHitEvent event) {
+        if (protectsProjectileKnot(event.getHitEntity(), event.getEntity())) event.setCancelled(true);
+    }
+    private boolean protectsProjectileKnot(Entity entity, Entity source) {
+        return entity instanceof LeashHitch && source instanceof Projectile
+                && engine.holders().contains(entity.getUniqueId());
     }
     private boolean protectsAnchor(org.bukkit.block.Block block) {
         for (UUID holder : engine.holders()) {

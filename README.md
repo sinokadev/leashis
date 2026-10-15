@@ -26,9 +26,9 @@ The [validation record](docs/VALIDATION.md) distinguishes build verification fro
 
 ## Installation
 
-- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.4.jar` in `plugins/`.
-- Fabric: put `leashis-fabric-<MC>-2.0.4.jar` and Fabric API matching your server version in `mods/`.
-- NeoForge: put `leashis-neoforge-<MC>-2.0.4.jar` matching your server version in `mods/`. The Minecraft 1.21.1 build supports NeoForge 21.1.257 or newer.
+- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.5.jar` in `plugins/`.
+- Fabric: put `leashis-fabric-<MC>-2.0.5.jar` and Fabric API matching your server version in `mods/`.
+- NeoForge: put `leashis-neoforge-<MC>-2.0.5.jar` matching your server version in `mods/`. The Minecraft 1.21.1 build supports NeoForge 21.1.257 or newer.
 
 Install only one Leashis JAR for your server's platform.
 The server runtime requires Java 17 or newer for 1.20–1.20.4, Java 21 or newer for 1.20.5–1.21.11,
@@ -45,12 +45,19 @@ In survival mode, a successful connection consumes one lead and returns it once 
 Connections started in creative mode neither consume nor return leads, even if the player's game mode changes afterward.
 You can leash multiple players at once, but you cannot take over an already leashed player.
 
+Arrows and other projectiles cannot destroy a fence knot while it holds a player, including while that player is offline or waiting to respawn. Empty knots keep their normal projectile behavior.
 Players tied to a fence cannot break that fence block, including in creative mode. Occupied fence anchors cannot be moved by pistons, sticky pistons, or slime/honey structures, including while a target is waiting to respawn or their disconnected leash is retained. Once all player connections to that fence are released, it can move again. This block protection applies even when `allowLeashedRemoveFenceKnot` is enabled; unrelated fences and other players are unaffected.
 Leashed players are blocked from right-clicking or directly attacking fence knots and from changing dimensions through portals or commands.
 By default, a leashed player reconnecting to the same running server keeps their connection, including fence attachments. The proxy is recreated on login without consuming or refunding another lead. Player-held connections are cleaned up on death. Other cleanup reasons include holder logout, riding, spectator mode, disabling the feature, or a holder changing dimensions. Server restarts clear connections.
 With `keepOnDeath=true` (default), when a player tied to a fence dies, the connection is retained without refunding or consuming another lead. Respawning returns them near that same fence and restores the leash, even if their saved spawn is in another dimension. This death behavior applies independently of `keepOnLogout`. The player's bed, respawn anchor, and saved spawn are not changed: after release, death uses the normal saved spawn again. If the fence anchor is removed before respawn, its connection is released and normal spawning applies.
 A normal server shutdown returns consumed leads; connections do not survive a restart.
 Proxy entities are not saved to the world. Bukkit also removes stale marked proxies from loaded chunks.
+
+## Pulling players closer
+
+Use `/l` or `/leashis pull` to reel in all players whose leashes you are holding. It pulls along the current rope direction toward you, regardless of where you are looking, and eases to a stop about one block away. It uses velocity rather than teleportation, so blocks still obstruct movement. Each pull lasts up to three seconds, with a one-second cooldown shared by both commands. Releasing or transferring a leash to a fence cancels its reel, and offline or dead targets are excluded.
+
+Pulling is available to ordinary players. Bukkit servers can control it with `leashis.pull` (default: everyone); configuration commands still require `leashis.admin`. On mods, configuration commands still require OP level 2. If another mod already owns `/l`, use `/leashis pull`.
 
 ## Configuration
 
