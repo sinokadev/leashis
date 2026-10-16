@@ -36,6 +36,30 @@ public final class Config {
         KEEP_ON_LOGOUT.save();
     }
 
+    public static final ModConfigSpec.BooleanValue PROTECT_PROJECTILE = BUILDER
+            .comment("Block projectile damage to occupied fence knots.").define("protectProjectile", true);
+
+    public static void setProtectProjectile(boolean value) throws java.io.IOException {
+        PROTECT_PROJECTILE.set(value);
+        PROTECT_PROJECTILE.save();
+    }
+
+    public static final ModConfigSpec.BooleanValue PROTECT_FENCE_BREAK = BUILDER
+            .comment("Prevent tied players from breaking their own fence.").define("protectFenceBreak", true);
+
+    public static void setProtectFenceBreak(boolean value) throws java.io.IOException {
+        PROTECT_FENCE_BREAK.set(value);
+        PROTECT_FENCE_BREAK.save();
+    }
+
+    public static final ModConfigSpec.BooleanValue PROTECT_PISTON = BUILDER
+            .comment("Prevent pistons from moving occupied fence anchors.").define("protectPiston", true);
+
+    public static void setProtectPiston(boolean value) throws java.io.IOException {
+        PROTECT_PISTON.set(value);
+        PROTECT_PISTON.save();
+    }
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private Config() {

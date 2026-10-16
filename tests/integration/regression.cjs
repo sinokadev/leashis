@@ -60,6 +60,20 @@ function click(owner,id){
   console.log('CLIENT vanilla clients joined');
   consoleCommand('leashis reconnect true');consoleCommand('leashis reconnect');
   consoleCommand('leashis death true');consoleCommand('leashis death');consoleCommand('deop LeashOwner');
+  for (const [command,label] of [['projectile','목줄 투사체 보호'],['fencebreak','묶인 플레이어의 울타리 파괴 방지'],['piston','울타리 피스톤 이동 방지']]) {
+    consoleCommand('op LeashOwner');await delay(200);
+    owner.messages=[];
+    owner.chat(`/leashis ${command} false`);await delay(200);
+    assert(owner.messages.some(m=>m.includes(label)&&m.includes('false')),'Protection command disables and reports state');
+    consoleCommand(`leashis ${command} true`);await delay(200);
+    consoleCommand('deop LeashOwner');await delay(200);
+    owner.chat(`/leashis ${command} false`);await delay(200);
+    consoleCommand('op LeashOwner');await delay(200);
+    owner.messages=[];owner.chat(`/leashis ${command}`);await delay(200);
+    assert(owner.messages.some(m=>m.includes(label)&&m.includes('true')),'Protection stays enabled after non-OP attempt');
+    consoleCommand('deop LeashOwner');await delay(200);
+  }
+  console.log('CLIENT protection toggle commands and permissions PASS');
   consoleCommand('gamerule doMobSpawning false');consoleCommand('gamerule doDaylightCycle false');
   consoleCommand('fill -15 79 -15 15 79 15 stone');
   consoleCommand('gamemode survival LeashOwner');consoleCommand('gamemode survival LeashTarget');

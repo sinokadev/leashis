@@ -25,6 +25,12 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     private NamespacedKey proxyKey;
     private LeashEngine engine;
     private Settings settings;
+    private static final Map<String, String> POLICIES = Map.of(
+            "reconnect", "keepOnLogout", "death", "keepOnDeath",
+            "projectile", "protectProjectile", "fencebreak", "protectFenceBreak", "piston", "protectPiston");
+    private static final Map<String, String> POLICY_LABELS = Map.of(
+            "reconnect", "재접속 시 묶임 유지", "death", "사망 시 울타리 묶임 유지",
+            "projectile", "목줄 투사체 보호", "fencebreak", "묶인 플레이어의 울타리 파괴 방지", "piston", "울타리 피스톤 이동 방지");
 
     @Override public void onEnable() {
         proxyKey = new NamespacedKey(this, "proxy");
@@ -46,16 +52,17 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
         if (command.getName().equalsIgnoreCase("l")) return args.length == 0 && pull(sender);
         if (args.length == 1 && args[0].equalsIgnoreCase("pull")) return pull(sender);
         if (!sender.hasPermission("leashis.admin")) { sender.sendMessage("이 명령어를 사용할 권한이 없습니다."); return true; }
-        if (args.length >= 1 && (args[0].equalsIgnoreCase("reconnect") || args[0].equalsIgnoreCase("death"))) {
-            boolean death = args[0].equalsIgnoreCase("death");
+        if (args.length >= 1 && POLICIES.containsKey(args[0].toLowerCase(Locale.ROOT))) {
+            String name = args[0].toLowerCase(Locale.ROOT);
+            String key = POLICIES.get(name);
             if (args.length > 2) return false;
             if (args.length == 2) {
                 if (!args[1].equalsIgnoreCase("true") && !args[1].equalsIgnoreCase("false")) return false;
-                getConfig().set(death ? "keepOnDeath" : "keepOnLogout", Boolean.parseBoolean(args[1]));
+                getConfig().set(key, Boolean.parseBoolean(args[1]));
                 saveConfig(); loadSettings(); engine.tick();
             }
-            sender.sendMessage((death ? "사망 시 울타리 묶임 유지: " : "재접속 시 묶임 유지: ")
-                    + ((death ? settings.keepOnDeath() : settings.keepOnLogout()) ? "켜짐 (true)" : "꺼짐 (false)"));
+            sender.sendMessage(POLICY_LABELS.get(name) + ": "
+                    + (getConfig().getBoolean(key, true) ? "켜짐 (true)" : "꺼짐 (false)"));
             return true;
         }
         if (args.length != 1 || !args[0].equalsIgnoreCase("reload")) return false;
@@ -76,9 +83,9 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
         List<String> options = new ArrayList<>();
         if (args.length == 1) {
             if (sender.hasPermission("leashis.pull")) options.add("pull");
-            if (sender.hasPermission("leashis.admin")) options.addAll(List.of("reload", "reconnect", "death"));
+            if (sender.hasPermission("leashis.admin")) { options.add("reload"); options.addAll(POLICIES.keySet()); }
         } else if (args.length == 2 && sender.hasPermission("leashis.admin")
-                && (args[0].equalsIgnoreCase("reconnect") || args[0].equalsIgnoreCase("death")))
+                && POLICIES.containsKey(args[0].toLowerCase(Locale.ROOT)))
             options.addAll(List.of("true", "false"));
         String prefix = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
         return options.stream().filter(option -> option.startsWith(prefix)).toList();
@@ -143,6 +150,7 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     }
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onBlockBreak(org.bukkit.event.block.BlockBreakEvent e) {
+        if (!getConfig().getBoolean("protectFenceBreak", true)) return;
         for (LeashEngine.Session session : engine.sessions()) {
             if (!session.target().equals(e.getPlayer().getUniqueId())) continue;
             UUID holderId = holder(session.proxy());
@@ -157,10 +165,11 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
         if (protectsProjectileKnot(event.getHitEntity(), event.getEntity())) event.setCancelled(true);
     }
     private boolean protectsProjectileKnot(Entity entity, Entity source) {
-        return entity instanceof LeashHitch && source instanceof Projectile
+        return getConfig().getBoolean("protectProjectile", true) && entity instanceof LeashHitch && source instanceof Projectile
                 && engine.holders().contains(entity.getUniqueId());
     }
     private boolean protectsAnchor(org.bukkit.block.Block block) {
+        if (!getConfig().getBoolean("protectPiston", true)) return false;
         for (UUID holder : engine.holders()) {
             Entity anchor = getServer().getEntity(holder);
             if (anchor instanceof LeashHitch && anchor.getWorld().equals(block.getWorld())

@@ -3,7 +3,7 @@
 import hashlib,json,shutil,zipfile
 from pathlib import Path
 root=Path(__file__).resolve().parent.parent
-matrix=json.loads((root/'versions.json').read_text());version='2.0.5'
+matrix=json.loads((root/'versions.json').read_text());version='2.0.6'
 dist=root/'dist';dist.mkdir(exist_ok=True)
 artifacts=[]
 def add(path,loader,mc,java):

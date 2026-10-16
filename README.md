@@ -26,9 +26,9 @@ The [validation record](docs/VALIDATION.md) distinguishes build verification fro
 
 ## Installation
 
-- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.5.jar` in `plugins/`.
-- Fabric: put `leashis-fabric-<MC>-2.0.5.jar` and Fabric API matching your server version in `mods/`.
-- NeoForge: put `leashis-neoforge-<MC>-2.0.5.jar` matching your server version in `mods/`. The Minecraft 1.21.1 build supports NeoForge 21.1.257 or newer.
+- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.6.jar` in `plugins/`.
+- Fabric: put `leashis-fabric-<MC>-2.0.6.jar` and Fabric API matching your server version in `mods/`.
+- NeoForge: put `leashis-neoforge-<MC>-2.0.6.jar` matching your server version in `mods/`. The Minecraft 1.21.1 build supports NeoForge 21.1.257 or newer.
 
 Install only one Leashis JAR for your server's platform.
 The server runtime requires Java 17 or newer for 1.20–1.20.4, Java 21 or newer for 1.20.5–1.21.11,
@@ -45,8 +45,8 @@ In survival mode, a successful connection consumes one lead and returns it once 
 Connections started in creative mode neither consume nor return leads, even if the player's game mode changes afterward.
 You can leash multiple players at once, but you cannot take over an already leashed player.
 
-Arrows and other projectiles cannot destroy a fence knot while it holds a player, including while that player is offline or waiting to respawn. Empty knots keep their normal projectile behavior.
-Players tied to a fence cannot break that fence block, including in creative mode. Occupied fence anchors cannot be moved by pistons, sticky pistons, or slime/honey structures, including while a target is waiting to respawn or their disconnected leash is retained. Once all player connections to that fence are released, it can move again. This block protection applies even when `allowLeashedRemoveFenceKnot` is enabled; unrelated fences and other players are unaffected.
+By default, arrows and other projectiles cannot destroy a fence knot while it holds a player, including while that player is offline or waiting to respawn. Empty knots keep their normal projectile behavior.
+By default, players tied to a fence cannot break that fence block, including in creative mode. Occupied fence anchors cannot be moved by pistons, sticky pistons, or slime/honey structures, including while a target is waiting to respawn or their disconnected leash is retained. Once all player connections to that fence are released, it can move again. When enabled, this block protection applies even when `allowLeashedRemoveFenceKnot` is enabled; unrelated fences and other players are unaffected.
 Leashed players are blocked from right-clicking or directly attacking fence knots and from changing dimensions through portals or commands.
 By default, a leashed player reconnecting to the same running server keeps their connection, including fence attachments. The proxy is recreated on login without consuming or refunding another lead. Player-held connections are cleaned up on death. Other cleanup reasons include holder logout, riding, spectator mode, disabling the feature, or a holder changing dimensions. Server restarts clear connections.
 With `keepOnDeath=true` (default), when a player tied to a fence dies, the connection is retained without refunding or consuming another lead. Respawning returns them near that same fence and restores the leash, even if their saved spawn is in another dimension. This death behavior applies independently of `keepOnLogout`. The player's bed, respawn anchor, and saved spawn are not changed: after release, death uses the normal saved spawn again. If the fence anchor is removed before respawn, its connection is released and normal spawning applies.
@@ -79,6 +79,9 @@ Configuration meanings and defaults are shared across platforms.
 | `distanceMax` | `10` | Distance beyond which the leash breaks (1–1024) |
 | `allowLeashedRemoveFenceKnot` | `false` | Allow leashed players to remove fence knots |
 | `keepOnLogout` | `true` | Keep a leashed target's connection across reconnects to the same running server |
+| `protectProjectile` | `true` | Protect occupied fence knots from projectiles |
+| `protectFenceBreak` | `true` | Prevent tied players from breaking their own fence block |
+| `protectPiston` | `true` | Prevent pistons from pushing or pulling occupied fence anchors |
 | `keepOnDeath` | `true` | Keep fence leashes on death and respawn near the fence |
 
 Administrators (OP level 2 on mods, `leashis.admin` on Bukkit) and the server console can use these commands on every platform:
@@ -89,6 +92,11 @@ Administrators (OP level 2 on mods, `leashis.admin` on Bukkit) and the server co
 - `/leashis death`: show the current fence death policy.
 - `/leashis death true`: keep fence leashes on death and respawn near the fence (default).
 - `/leashis death false`: release fence leashes on death, refund a consumed lead, and use the normal saved spawn.
+- `/leashis projectile [true|false]`: show or toggle protection against arrows and other projectiles.
+- `/leashis fencebreak [true|false]`: show or toggle preventing a tied player from breaking their own fence block.
+- `/leashis piston [true|false]`: show or toggle preventing piston pushes/pulls, including slime/honey structures.
+
+These three protections default to `true` and are independent. Setting one to `false` restores normal damage or block movement for that action; the leash may then break. Fence block breaking is separate from knot interaction (`allowLeashedRemoveFenceKnot`).
 
 Changes apply immediately and are saved to the platform's configuration file. Turning reconnect retention off also releases targets who are already offline. Turning death retention off releases connections already waiting for respawn; active connections remain until death or another release condition. Holder logout still releases their targets in either mode. Server restarts clear connections in either mode.
 

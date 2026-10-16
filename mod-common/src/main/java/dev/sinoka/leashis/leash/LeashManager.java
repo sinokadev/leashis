@@ -30,17 +30,19 @@ public final class LeashManager implements LeashEngine.Port {
         return e instanceof LeashFenceKnotEntity && engine.protectKnot(p.getUUID());
     }
     public boolean shouldProtectProjectile(Entity entity, net.minecraft.world.damagesource.DamageSource source) {
-        return entity instanceof LeashFenceKnotEntity
+        return Config.PROTECT_PROJECTILE.get() && entity instanceof LeashFenceKnotEntity
                 && (source.getDirectEntity() instanceof net.minecraft.world.entity.projectile.Projectile
                     || source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE))
                 && engine.holders().contains(entity.getUUID());
     }
     public boolean shouldProtectFence(ServerPlayer player, net.minecraft.core.BlockPos pos) {
+        if (!Config.PROTECT_FENCE_BREAK.get()) return false;
         var session = getSession(player.getUUID());
         return session != null && session.holder() instanceof LeashFenceKnotEntity knot
                 && knot.level() == player.level() && knot.getPos().equals(pos);
     }
     public boolean shouldProtectFence(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos) {
+        if (!Config.PROTECT_PISTON.get()) return false;
         for (UUID holder : engine.holders()) {
             Entity anchor = entities.get(holder);
             if (anchor instanceof LeashFenceKnotEntity knot && knot.level() == level && knot.getPos().equals(pos))

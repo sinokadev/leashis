@@ -12,6 +12,9 @@ public final class Config {
     public static final Value<Boolean> ALLOW_LEASHED_REMOVE_FENCE_KNOT = new Value<>(false);
     public static final Value<Boolean> KEEP_ON_LOGOUT = new Value<>(true);
     public static final Value<Boolean> KEEP_ON_DEATH = new Value<>(true);
+    public static final Value<Boolean> PROTECT_PROJECTILE = new Value<>(true);
+    public static final Value<Boolean> PROTECT_FENCE_BREAK = new Value<>(true);
+    public static final Value<Boolean> PROTECT_PISTON = new Value<>(true);
     private static Path configPath;
     public static final class Value<T> {
         private T value;
@@ -29,11 +32,17 @@ public final class Config {
         ALLOW_LEASHED_REMOVE_FENCE_KNOT.set(bool(properties, "allowLeashedRemoveFenceKnot", false));
         KEEP_ON_LOGOUT.set(bool(properties, "keepOnLogout", true));
         KEEP_ON_DEATH.set(bool(properties, "keepOnDeath", true));
+        PROTECT_PROJECTILE.set(bool(properties, "protectProjectile", true));
+        PROTECT_FENCE_BREAK.set(bool(properties, "protectFenceBreak", true));
+        PROTECT_PISTON.set(bool(properties, "protectPiston", true));
         if (!Files.exists(path)) {
             properties.setProperty("enabled", "true"); properties.setProperty("distanceMin", "4");
             properties.setProperty("distanceMax", "10"); properties.setProperty("allowLeashedRemoveFenceKnot", "false");
             properties.setProperty("keepOnLogout", "true");
             properties.setProperty("keepOnDeath", "true");
+            properties.setProperty("protectProjectile", "true");
+            properties.setProperty("protectFenceBreak", "true");
+            properties.setProperty("protectPiston", "true");
             Files.createDirectories(path.getParent());
             try (Writer writer = Files.newBufferedWriter(path)) { properties.store(writer, "Leashis server settings"); }
         }
@@ -45,6 +54,18 @@ public final class Config {
     public static void setKeepOnDeath(boolean value) throws IOException {
         saveBoolean("keepOnDeath", value);
         KEEP_ON_DEATH.set(value);
+    }
+    public static void setProtectProjectile(boolean value) throws IOException {
+        saveBoolean("protectProjectile", value);
+        PROTECT_PROJECTILE.set(value);
+    }
+    public static void setProtectFenceBreak(boolean value) throws IOException {
+        saveBoolean("protectFenceBreak", value);
+        PROTECT_FENCE_BREAK.set(value);
+    }
+    public static void setProtectPiston(boolean value) throws IOException {
+        saveBoolean("protectPiston", value);
+        PROTECT_PISTON.set(value);
     }
     private static void saveBoolean(String key, boolean value) throws IOException {
         Properties properties = new Properties();

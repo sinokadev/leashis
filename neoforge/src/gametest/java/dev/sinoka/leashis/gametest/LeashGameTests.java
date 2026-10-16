@@ -265,6 +265,67 @@ public final class LeashGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void protectionsCanBeToggledIndependently(GameTestHelper helper) {
+        Fixture f = fixture(helper);
+        LeashManager previous = dev.sinoka.leashis.Leashis.manager;
+        boolean projectile = Config.PROTECT_PROJECTILE.get();
+        boolean fenceBreak = Config.PROTECT_FENCE_BREAK.get();
+        boolean piston = Config.PROTECT_PISTON.get();
+        var arrow = net.minecraft.world.entity.EntityType.ARROW.create(helper.getLevel());
+        try {
+            dev.sinoka.leashis.Leashis.manager = f.manager;
+            Config.PROTECT_PROJECTILE.set(true);
+            Config.PROTECT_FENCE_BREAK.set(true);
+            Config.PROTECT_PISTON.set(true);
+            f.connect();
+            BlockPos fence = helper.absolutePos(new BlockPos(3, 1, 2));
+            helper.getLevel().setBlockAndUpdate(fence, Blocks.OAK_FENCE.defaultBlockState());
+            LeadItem.bindPlayerMobs(f.holder, helper.getLevel(), fence);
+            var knot = (LeashFenceKnotEntity)f.manager.getSession(f.target.getUUID()).holder();
+            var source = helper.getLevel().damageSources().arrow(arrow, f.holder);
+            var events = new LeashEvents(f.manager);
+            // Resolve the real piston structure so the mixin participates.
+            var direction = net.minecraft.core.Direction.EAST;
+            var pistonPos = fence.relative(direction.getOpposite());
+            helper.getLevel().setBlockAndUpdate(pistonPos, Blocks.PISTON.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.piston.PistonBaseBlock.FACING, direction));
+            for (boolean enabled : new boolean[] {false, true}) {
+                Config.PROTECT_FENCE_BREAK.set(enabled);
+                var event = new net.neoforged.neoforge.event.level.BlockEvent.BreakEvent(
+                        helper.getLevel(), fence, Blocks.OAK_FENCE.defaultBlockState(), f.target);
+                events.onBlockBreak(event);
+                helper.assertTrue(event.isCanceled() == enabled, "Fence breaking follows toggle immediately");
+                helper.assertTrue(!knot.hurt(source, 2), "Fence toggle leaves projectile protection enabled");
+                helper.assertTrue(!new net.minecraft.world.level.block.piston.PistonStructureResolver(
+                        helper.getLevel(), pistonPos, direction, true).resolve(), "Fence toggle leaves piston protection enabled");
+            }
+            for (boolean enabled : new boolean[] {false, true}) {
+                Config.PROTECT_PISTON.set(enabled);
+                helper.assertTrue(new net.minecraft.world.level.block.piston.PistonStructureResolver(
+                        helper.getLevel(), pistonPos, direction, true).resolve() != enabled,
+                        "Piston resolution follows toggle immediately");
+                helper.assertTrue(f.manager.shouldProtectFence(f.target, fence), "Piston toggle leaves fence breaking protected");
+                helper.assertTrue(!knot.hurt(source, 2), "Piston toggle leaves projectile protection enabled");
+            }
+            Config.PROTECT_PROJECTILE.set(false);
+            helper.assertTrue(f.manager.shouldProtectFence(f.target, fence), "Projectile toggle leaves fence breaking protected");
+            helper.assertTrue(f.manager.shouldProtectFence(helper.getLevel(), fence), "Projectile toggle leaves piston protection enabled");
+            Config.PROTECT_PROJECTILE.set(true);
+            helper.assertTrue(!knot.hurt(source, 2) && !knot.isRemoved(), "Re-enabling projectile protection takes effect immediately");
+            Config.PROTECT_PROJECTILE.set(false);
+            helper.assertTrue(knot.hurt(source, 2) && knot.isRemoved(), "Disabled projectile protection allows vanilla knot destruction");
+            helper.succeed();
+        } finally {
+            arrow.discard();
+            Config.PROTECT_PROJECTILE.set(projectile);
+            Config.PROTECT_FENCE_BREAK.set(fenceBreak);
+            Config.PROTECT_PISTON.set(piston);
+            f.manager.stop();
+            dev.sinoka.leashis.Leashis.manager = previous;
+        }
+    }
+
+    @GameTest(template = "empty")
     public static void ownerLogoutReleasesEveryTarget(GameTestHelper helper) {
         Fixture f = fixture(helper);
         try {

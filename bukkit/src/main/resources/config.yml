@@ -4,3 +4,6 @@ distanceMax: 10
 allowLeashedRemoveFenceKnot: false
 keepOnLogout: true
 keepOnDeath: true
+protectProjectile: true
+protectFenceBreak: true
+protectPiston: true
