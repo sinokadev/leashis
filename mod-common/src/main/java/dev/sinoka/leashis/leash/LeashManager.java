@@ -25,6 +25,9 @@ public final class LeashManager implements LeashEngine.Port {
                 .map(s -> new LeashSession((ServerPlayer)entities.get(id), proxies.get(s.proxy()), s.attachedAt(), s.refund()))
                 .findFirst().orElse(null);
     }
+    public boolean shouldBlockInteractions(ServerPlayer player) {
+        return Config.BLOCK_INTERACTIONS_WHILE_LEASHED.get() && engine.isLeashed(player.getUUID());
+    }
     public boolean isLeashed(UUID id) { return engine.isLeashed(id); }
     public boolean shouldProtectKnot(ServerPlayer p, Entity e) {
         return e instanceof LeashFenceKnotEntity && engine.protectKnot(p.getUUID());
@@ -74,6 +77,12 @@ public final class LeashManager implements LeashEngine.Port {
         pendingRespawns.clear();
         for (ServerPlayer player : ready) if (!player.hasDisconnected() && player.isAlive()) completeRespawn(player);
         engine.advanceTo(server.overworld().getGameTime()); engine.tick();
+        for (var session : engine.sessions()) {
+            if (entities.get(session.target()) instanceof ServerPlayer player && shouldBlockInteractions(player)) {
+                player.stopUsingItem();
+                if (player.containerMenu != player.inventoryMenu) player.closeContainer();
+            }
+        }
         entities.keySet().removeIf(id -> !engine.involves(id));
     }
     public void logout(ServerPlayer player) { engine.logout(player.getUUID()); }

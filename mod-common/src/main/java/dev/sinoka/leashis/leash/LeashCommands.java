@@ -18,7 +18,8 @@ public final class LeashCommands {
                 .then(policy("death"))
                 .then(policy("projectile"))
                 .then(policy("fencebreak"))
-                .then(policy("piston")));
+                .then(policy("piston"))
+                .then(policy("interactions")));
         if (dispatcher.getRoot().getChild("l") == null)
             dispatcher.register(Commands.literal("l").executes(context -> pull(context.getSource(), manager)));
     }
@@ -48,6 +49,7 @@ public final class LeashCommands {
                             case "projectile" -> Config.setProtectProjectile(keep);
                             case "fencebreak" -> Config.setProtectFenceBreak(keep);
                             case "piston" -> Config.setProtectPiston(keep);
+                            case "interactions" -> Config.setBlockInteractionsWhileLeashed(keep);
                             default -> throw new IllegalArgumentException(name);
                         }
                     } catch (java.io.IOException | RuntimeException e) {
@@ -65,6 +67,7 @@ public final class LeashCommands {
             case "projectile" -> Config.PROTECT_PROJECTILE.get();
             case "fencebreak" -> Config.PROTECT_FENCE_BREAK.get();
             case "piston" -> Config.PROTECT_PISTON.get();
+            case "interactions" -> Config.BLOCK_INTERACTIONS_WHILE_LEASHED.get();
             default -> throw new IllegalArgumentException(name);
         };
         String label = switch (name) {
@@ -73,6 +76,7 @@ public final class LeashCommands {
             case "projectile" -> "목줄 투사체 보호";
             case "fencebreak" -> "묶인 플레이어의 울타리 파괴 방지";
             case "piston" -> "울타리 피스톤 이동 방지";
+            case "interactions" -> "묶인 플레이어 상호작용 차단";
             default -> throw new IllegalArgumentException(name);
         };
         return Component.literal(label + ": " + (enabled ? "켜짐 (true)" : "꺼짐 (false)"));

@@ -15,6 +15,7 @@ public final class Config {
     public static final Value<Boolean> PROTECT_PROJECTILE = new Value<>(true);
     public static final Value<Boolean> PROTECT_FENCE_BREAK = new Value<>(true);
     public static final Value<Boolean> PROTECT_PISTON = new Value<>(true);
+    public static final Value<Boolean> BLOCK_INTERACTIONS_WHILE_LEASHED = new Value<>(false);
     private static Path configPath;
     public static final class Value<T> {
         private T value;
@@ -35,6 +36,7 @@ public final class Config {
         PROTECT_PROJECTILE.set(bool(properties, "protectProjectile", true));
         PROTECT_FENCE_BREAK.set(bool(properties, "protectFenceBreak", true));
         PROTECT_PISTON.set(bool(properties, "protectPiston", true));
+        BLOCK_INTERACTIONS_WHILE_LEASHED.set(bool(properties, "blockInteractionsWhileLeashed", false));
         if (!Files.exists(path)) {
             properties.setProperty("enabled", "true"); properties.setProperty("distanceMin", "4");
             properties.setProperty("distanceMax", "10"); properties.setProperty("allowLeashedRemoveFenceKnot", "false");
@@ -43,6 +45,7 @@ public final class Config {
             properties.setProperty("protectProjectile", "true");
             properties.setProperty("protectFenceBreak", "true");
             properties.setProperty("protectPiston", "true");
+            properties.setProperty("blockInteractionsWhileLeashed", "false");
             Files.createDirectories(path.getParent());
             try (Writer writer = Files.newBufferedWriter(path)) { properties.store(writer, "Leashis server settings"); }
         }
@@ -66,6 +69,10 @@ public final class Config {
     public static void setProtectPiston(boolean value) throws IOException {
         saveBoolean("protectPiston", value);
         PROTECT_PISTON.set(value);
+    }
+    public static void setBlockInteractionsWhileLeashed(boolean value) throws IOException {
+        saveBoolean("blockInteractionsWhileLeashed", value);
+        BLOCK_INTERACTIONS_WHILE_LEASHED.set(value);
     }
     private static void saveBoolean(String key, boolean value) throws IOException {
         Properties properties = new Properties();

@@ -26,9 +26,9 @@ The [validation record](docs/VALIDATION.md) distinguishes build verification fro
 
 ## Installation
 
-- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.6.jar` in `plugins/`.
-- Fabric: put `leashis-fabric-<MC>-2.0.6.jar` and Fabric API matching your server version in `mods/`.
-- NeoForge: put `leashis-neoforge-<MC>-2.0.6.jar` matching your server version in `mods/`. The Minecraft 1.21.1 build supports NeoForge 21.1.257 or newer.
+- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.7.jar` in `plugins/`.
+- Fabric: put `leashis-fabric-<MC>-2.0.7.jar` and Fabric API matching your server version in `mods/`.
+- NeoForge: put `leashis-neoforge-<MC>-2.0.7.jar` matching your server version in `mods/`. The Minecraft 1.21.1 build supports NeoForge 21.1.257 or newer.
 
 Install only one Leashis JAR for your server's platform.
 The server runtime requires Java 17 or newer for 1.20–1.20.4, Java 21 or newer for 1.20.5–1.21.11,
@@ -79,6 +79,7 @@ Configuration meanings and defaults are shared across platforms.
 | `distanceMax` | `10` | Distance beyond which the leash breaks (1–1024) |
 | `allowLeashedRemoveFenceKnot` | `false` | Allow leashed players to remove fence knots |
 | `keepOnLogout` | `true` | Keep a leashed target's connection across reconnects to the same running server |
+| `blockInteractionsWhileLeashed` | `false` | Block manual interactions, inventory changes, item drops and pickup while leashed |
 | `protectProjectile` | `true` | Protect occupied fence knots from projectiles |
 | `protectFenceBreak` | `true` | Prevent tied players from breaking their own fence block |
 | `protectPiston` | `true` | Prevent pistons from pushing or pulling occupied fence anchors |
@@ -97,6 +98,8 @@ Administrators (OP level 2 on mods, `leashis.admin` on Bukkit) and the server co
 - `/leashis piston [true|false]`: show or toggle preventing piston pushes/pulls, including slime/honey structures.
 
 These three protections default to `true` and are independent. Setting one to `false` restores normal damage or block movement for that action; the leash may then break. Fence block breaking is separate from knot interaction (`allowLeashedRemoveFenceKnot`).
+
+`/leashis interactions` shows the interaction lock. `/leashis interactions true` enables it, and `/leashis interactions false` disables it (default). When enabled, targets attached to either a player or a fence cannot break/place/use blocks, attack or interact with entities, use items, manipulate inventories (including crafting/creative inventory), swap hands, drop or pick up items. Open containers are closed and ongoing item use is stopped or its completion blocked. Holders and unbound players remain unrestricted; releasing the target restores interactions immediately. Walking, looking, chat and commands remain available. This lock overrides the three individual protection toggles for actions attempted by the bound player.
 
 Changes apply immediately and are saved to the platform's configuration file. Turning reconnect retention off also releases targets who are already offline. Turning death retention off releases connections already waiting for respawn; active connections remain until death or another release condition. Holder logout still releases their targets in either mode. Server restarts clear connections in either mode.
 

@@ -58,6 +58,7 @@ function click(owner,id){
   for(let i=0;i<100&&(!owner.position||!target.position);i++)await delay(100);
   assert(owner.position&&target.position,'Both vanilla clients must join');
   console.log('CLIENT vanilla clients joined');
+  consoleCommand('leashis interactions false');
   consoleCommand('leashis reconnect true');consoleCommand('leashis reconnect');
   consoleCommand('leashis death true');consoleCommand('leashis death');consoleCommand('deop LeashOwner');
   for (const [command,label] of [['projectile','목줄 투사체 보호'],['fencebreak','묶인 플레이어의 울타리 파괴 방지'],['piston','울타리 피스톤 이동 방지']]) {
@@ -135,6 +136,31 @@ function click(owner,id){
   consoleCommand('kill @e[type=minecraft:arrow]');await delay(200);
   owner.messages=[];owner.chat('/l');await delay(200);
   assert(owner.messages.some(m=>m.includes('직접 끌고 있는 플레이어가 없습니다.')),'Fence-bound targets cannot be reeled by former holder');
+  // Global interaction lock also covers unrelated blocks and item drops.
+  consoleCommand('leashis interactions true');consoleCommand('gamemode creative LeashTarget');
+  consoleCommand('clear LeashTarget');consoleCommand('give LeashTarget minecraft:lead 3');
+  consoleCommand('setblock 3 80 0 minecraft:lever[face=floor,powered=false]');await delay(400);
+  const useLever=()=>target.write('block_place',{hand:0,location:{x:3,y:80,z:0},direction:1,cursorX:0.5,cursorY:0.5,cursorZ:0.5,insideBlock:false,sequence:20});
+  const unpoweredLever=owner.blocks.get('3,80,0');
+  useLever();await delay(300);
+  assert.equal(owner.blocks.get('3,80,0'),unpoweredLever,'Interaction lock blocks lever use');
+  target.write('block_dig',{status:0,location:{x:3,y:80,z:0},face:1,sequence:21});await delay(300);
+  assert.equal(data.blocksByStateId[owner.blocks.get('3,80,0')]?.name,'lever','Interaction lock blocks unrelated creative block breaking');
+  let lockedDrops=owner.items.length;
+  target.write('block_dig',{status:4,location:{x:0,y:0,z:0},face:0,sequence:22});await delay(300);
+  assert.equal(owner.items.length,lockedDrops,'Interaction lock blocks item drops');
+  assert.equal(target.itemCount,3,'Blocked drop preserves inventory');
+  consoleCommand('leashis interactions false');await delay(300);
+  useLever();await delay(300);
+  assert.notEqual(owner.blocks.get('3,80,0'),unpoweredLever,'Disabling interaction lock restores lever use while still bound');
+  target.write('block_dig',{status:4,location:{x:0,y:0,z:0},face:0,sequence:23});await delay(300);
+  assert.equal(owner.items.length,lockedDrops+1,'Disabling interaction lock restores item drops');
+  target.write('block_dig',{status:0,location:{x:3,y:80,z:0},face:1,sequence:24});await delay(300);
+  assert.equal(owner.blocks.get('3,80,0'),data.blocksByName.air.defaultState,'Disabling interaction lock restores unrelated block breaking');
+  consoleCommand('clear LeashTarget');consoleCommand('kill @e[type=minecraft:item]');
+  consoleCommand('gamemode survival LeashTarget');await delay(300);
+  assert(owner.entities.has(tied.entityId),'Interaction policy changes preserve connection');
+  console.log('CLIENT interaction lock use, break, drops and immediate toggle PASS');
   // Death must not consume/refund the lead or overwrite the player's real spawn.
   consoleCommand('spawnpoint LeashTarget 10 80 10');consoleCommand('clear LeashTarget');
   consoleCommand('leashis reconnect false');await delay(300);

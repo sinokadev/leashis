@@ -7,3 +7,4 @@ keepOnDeath: true
 protectProjectile: true
 protectFenceBreak: true
 protectPiston: true
+blockInteractionsWhileLeashed: false

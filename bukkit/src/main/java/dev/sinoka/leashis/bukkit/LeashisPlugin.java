@@ -27,10 +27,10 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     private Settings settings;
     private static final Map<String, String> POLICIES = Map.of(
             "reconnect", "keepOnLogout", "death", "keepOnDeath",
-            "projectile", "protectProjectile", "fencebreak", "protectFenceBreak", "piston", "protectPiston");
+            "projectile", "protectProjectile", "fencebreak", "protectFenceBreak", "piston", "protectPiston", "interactions", "blockInteractionsWhileLeashed");
     private static final Map<String, String> POLICY_LABELS = Map.of(
             "reconnect", "재접속 시 묶임 유지", "death", "사망 시 울타리 묶임 유지",
-            "projectile", "목줄 투사체 보호", "fencebreak", "묶인 플레이어의 울타리 파괴 방지", "piston", "울타리 피스톤 이동 방지");
+            "projectile", "목줄 투사체 보호", "fencebreak", "묶인 플레이어의 울타리 파괴 방지", "piston", "울타리 피스톤 이동 방지", "interactions", "묶인 플레이어 상호작용 차단");
 
     @Override public void onEnable() {
         proxyKey = new NamespacedKey(this, "proxy");
@@ -39,7 +39,15 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
         engine = new LeashEngine(this, () -> settings);
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getWorlds().forEach(w -> w.getEntities().stream().filter(this::marked).forEach(Entity::remove));
-        getServer().getScheduler().runTaskTimer(this, engine::tick, 1, 1);
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            engine.tick();
+            for (Player player : getServer().getOnlinePlayers()) if (blockInteractions(player)) {
+                // Close containers opened before attachment or before the option was enabled.
+                if (player.getOpenInventory().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING
+                        && player.getOpenInventory().getType() != org.bukkit.event.inventory.InventoryType.CREATIVE)
+                    player.closeInventory();
+            }
+        }, 1, 1);
     }
     @Override public void onDisable() { if (engine != null) engine.stop(); }
     private void loadSettings() {
@@ -62,7 +70,7 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
                 saveConfig(); loadSettings(); engine.tick();
             }
             sender.sendMessage(POLICY_LABELS.get(name) + ": "
-                    + (getConfig().getBoolean(key, true) ? "켜짐 (true)" : "꺼짐 (false)"));
+                    + (getConfig().getBoolean(key, !name.equals("interactions")) ? "켜짐 (true)" : "꺼짐 (false)"));
             return true;
         }
         if (args.length != 1 || !args[0].equalsIgnoreCase("reload")) return false;
@@ -90,6 +98,68 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
         String prefix = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
         return options.stream().filter(option -> option.startsWith(prefix)).toList();
     }
+    private boolean blockInteractions(Player player) {
+        return getConfig().getBoolean("blockInteractionsWhileLeashed", false) && engine.isLeashed(player.getUniqueId());
+    }
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockedUse(PlayerInteractEvent event) {
+        if (blockInteractions(event.getPlayer())) {
+            event.setUseInteractedBlock(Event.Result.DENY);
+            event.setUseItemInHand(Event.Result.DENY);
+        }
+    }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockedEntityUse(PlayerInteractEntityEvent event) {
+        if (blockInteractions(event.getPlayer())) event.setCancelled(true);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockedEntityUseAt(PlayerInteractAtEntityEvent event) {
+        if (blockInteractions(event.getPlayer())) event.setCancelled(true);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockedAttack(EntityDamageByEntityEvent event) {
+        if (event.getDamager() instanceof Player player && blockInteractions(player)) event.setCancelled(true);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockedPlace(org.bukkit.event.block.BlockPlaceEvent event) {
+        if (blockInteractions(event.getPlayer())) event.setCancelled(true);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockedDrop(PlayerDropItemEvent event) {
+        if (blockInteractions(event.getPlayer())) event.setCancelled(true);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockedPickup(EntityPickupItemEvent event) {
+        if (event.getEntity() instanceof Player player && blockInteractions(player)) event.setCancelled(true);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockedSwap(PlayerSwapHandItemsEvent event) {
+        if (blockInteractions(event.getPlayer())) event.setCancelled(true);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockedConsume(PlayerItemConsumeEvent event) {
+        if (blockInteractions(event.getPlayer())) event.setCancelled(true);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockedInventory(org.bukkit.event.inventory.InventoryClickEvent event) {
+        if (event.getWhoClicked() instanceof Player player && blockInteractions(player)) event.setCancelled(true);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockedInventoryDrag(org.bukkit.event.inventory.InventoryDragEvent event) {
+        if (event.getWhoClicked() instanceof Player player && blockInteractions(player)) event.setCancelled(true);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockedInventoryOpen(org.bukkit.event.inventory.InventoryOpenEvent event) {
+        if (event.getPlayer() instanceof Player player && blockInteractions(player)) event.setCancelled(true);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockedProjectile(ProjectileLaunchEvent event) {
+        if (event.getEntity().getShooter() instanceof Player player && blockInteractions(player)) event.setCancelled(true);
+    }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockedBow(EntityShootBowEvent event) {
+        if (event.getEntity() instanceof Player player && blockInteractions(player)) event.setCancelled(true);
+    }
     private boolean marked(Entity e) { return e.getPersistentDataContainer().has(proxyKey, PersistentDataType.BYTE); }
     @EventHandler public void onChunk(ChunkLoadEvent e) {
         for (Entity entity : e.getChunk().getEntities())
@@ -97,6 +167,7 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     }
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEntityEvent e) {
+        if (blockInteractions(e.getPlayer())) { e.setCancelled(true); return; }
         Entity clicked = e.getRightClicked();
         if (clicked instanceof LeashHitch) {
             if (engine.protectKnot(e.getPlayer().getUniqueId())) { e.setCancelled(true); return; }
@@ -122,6 +193,7 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     }
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
     public void onFence(PlayerInteractEvent e) {
+        if (blockInteractions(e.getPlayer())) { e.setCancelled(true); return; }
         if (e.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK || e.getClickedBlock() == null
                 || !Tag.FENCES.isTagged(e.getClickedBlock().getType()) || e.getHand() != EquipmentSlot.HAND) return;
         List<LeashEngine.Session> held = engine.sessions().stream()
@@ -150,6 +222,7 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     }
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onBlockBreak(org.bukkit.event.block.BlockBreakEvent e) {
+        if (blockInteractions(e.getPlayer())) { e.setCancelled(true); return; }
         if (!getConfig().getBoolean("protectFenceBreak", true)) return;
         for (LeashEngine.Session session : engine.sessions()) {
             if (!session.target().equals(e.getPlayer().getUniqueId())) continue;

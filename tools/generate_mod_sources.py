@@ -33,8 +33,17 @@ for file in (root/'mod-common/src/main/java').rglob('*.java'):
   if at('1.21.2'):
    s=s.replace('@Inject(method = "hurt",', '@Inject(method = "hurtServer",')
    s=s.replace('leashis$protectProjectile(DamageSource source,', 'leashis$protectProjectile(net.minecraft.server.level.ServerLevel level, DamageSource source,')
- if file.name in ['PistonMixin.java','KnotDamageMixin.java'] and a.loader=='fabric':
+ if file.name in ['PistonMixin.java','KnotDamageMixin.java','InteractionMixin.java','ItemPickupMixin.java'] and a.loader=='fabric':
   s=s.replace('import dev.sinoka.leashis.Leashis;', 'import dev.sinoka.leashis.fabric.LeashisFabric;').replace('Leashis.manager', 'LeashisFabric.manager')
+ if file.name=='InteractionMixin.java':
+  if at('1.21.4'):
+   s=s.replace('"handlePickItem"', '"handlePickItemFromBlock", "handlePickItemFromEntity"')
+  if at('26.2'):
+   s=s.replace('"handleInteract",', '"handleInteract", "handleAttack",')
+  if at('26.3'):
+   # Only the use packets became records; PlayerActionPacket still has getters.
+   head, tail = s.split('    @Inject(method = "handleUseItemOn"', 1)
+   s=head+'    @Inject(method = "handleUseItemOn"'+tail.replace('packet.getHitResult()', 'packet.hitResult()').replace('packet.getSequence()', 'packet.sequence()')
  if file.name=='LeashCommands.java' and at('1.21.11'):
   s=s.replace('.requires(source -> source.hasPermission(2))', '.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))')
  if file.name=='LeashManager.java' and at('1.21.2'):

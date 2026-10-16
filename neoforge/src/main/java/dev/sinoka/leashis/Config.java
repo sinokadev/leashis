@@ -60,6 +60,15 @@ public final class Config {
         PROTECT_PISTON.save();
     }
 
+    public static final ModConfigSpec.BooleanValue BLOCK_INTERACTIONS_WHILE_LEASHED = BUILDER
+            .comment("Block manual interactions, inventory actions and item pickup while leashed.")
+            .define("blockInteractionsWhileLeashed", false);
+
+    public static void setBlockInteractionsWhileLeashed(boolean value) throws java.io.IOException {
+        BLOCK_INTERACTIONS_WHILE_LEASHED.set(value);
+        BLOCK_INTERACTIONS_WHILE_LEASHED.save();
+    }
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private Config() {

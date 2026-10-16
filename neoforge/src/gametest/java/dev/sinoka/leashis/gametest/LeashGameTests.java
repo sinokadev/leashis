@@ -326,6 +326,61 @@ public final class LeashGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void interactionLockCoversInventoryItemsAndRelease(GameTestHelper helper) {
+        Fixture f = fixture(helper);
+        LeashManager previous = dev.sinoka.leashis.Leashis.manager;
+        boolean blocked = Config.BLOCK_INTERACTIONS_WHILE_LEASHED.get();
+        var pig = net.minecraft.world.entity.EntityType.PIG.create(helper.getLevel());
+        var item = new ItemEntity(helper.getLevel(), f.target.getX(), f.target.getY(), f.target.getZ(), new ItemStack(Items.DIAMOND));
+        try {
+            dev.sinoka.leashis.Leashis.manager = f.manager;
+            Config.BLOCK_INTERACTIONS_WHILE_LEASHED.set(true);
+            helper.assertTrue(!f.manager.shouldBlockInteractions(f.target), "Unbound players remain unrestricted");
+            f.connect();
+            helper.assertTrue(f.manager.shouldBlockInteractions(f.target), "Held target is blocked");
+            helper.assertTrue(!f.manager.shouldBlockInteractions(f.holder), "Holder remains unrestricted");
+            pig.setPos(f.target.getX() + 0.5, f.target.getY(), f.target.getZ());
+            helper.getLevel().addFreshEntity(pig);
+            float health = pig.getHealth();
+            f.target.connection.handleInteract(net.minecraft.network.protocol.game.ServerboundInteractPacket.createAttackPacket(pig, false));
+            helper.assertTrue(pig.getHealth() == health, "Bound target cannot attack entities");
+            f.target.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.SNOWBALL, 3));
+            f.target.connection.handleUseItem(new net.minecraft.network.protocol.game.ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, 0, 0));
+            helper.assertTrue(f.target.getMainHandItem().getCount() == 3, "Blocked item use does not consume snowball");
+            f.target.connection.handlePlayerAction(new net.minecraft.network.protocol.game.ServerboundPlayerActionPacket(
+                    net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.DROP_ITEM, f.target.blockPosition(), net.minecraft.core.Direction.UP, 0));
+            helper.assertTrue(f.target.getMainHandItem().getCount() == 3, "Blocked drop preserves stack");
+            f.target.connection.handleContainerClick(new net.minecraft.network.protocol.game.ServerboundContainerClickPacket(
+                    0, f.target.inventoryMenu.getStateId(), 36, 0, net.minecraft.world.inventory.ClickType.PICKUP,
+                    ItemStack.EMPTY, new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>()));
+            helper.assertTrue(f.target.getMainHandItem().getCount() == 3 && f.target.inventoryMenu.getCarried().isEmpty(), "Blocked inventory click preserves slot and cursor");
+            f.target.setGameMode(GameType.CREATIVE);
+            f.target.connection.handleSetCreativeModeSlot(new net.minecraft.network.protocol.game.ServerboundSetCreativeModeSlotPacket(36, new ItemStack(Items.DIAMOND, 64)));
+            helper.assertTrue(f.target.getMainHandItem().is(Items.SNOWBALL), "Creative inventory writes are blocked");
+            item.playerTouch(f.target);
+            helper.assertTrue(!item.isRemoved() && !f.target.getInventory().contains(new ItemStack(Items.DIAMOND)), "Item pickup is blocked");
+            f.target.setGameMode(GameType.SURVIVAL);
+            Config.BLOCK_INTERACTIONS_WHILE_LEASHED.set(false);
+            f.target.connection.handleInteract(net.minecraft.network.protocol.game.ServerboundInteractPacket.createAttackPacket(pig, false));
+            helper.assertTrue(pig.getHealth() < health, "Disabling lock restores entity attacks");
+            f.target.connection.handleUseItem(new net.minecraft.network.protocol.game.ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, 0, 0));
+            helper.assertTrue(f.target.getMainHandItem().getCount() == 2, "Disabling lock restores item use immediately");
+            Config.BLOCK_INTERACTIONS_WHILE_LEASHED.set(true);
+            f.manager.detach(f.target.getUUID(), DetachReason.MANUAL);
+            helper.assertTrue(!f.manager.shouldBlockInteractions(f.target), "Release restores interactions while option stays enabled");
+            item.playerTouch(f.target);
+            helper.assertTrue(item.isRemoved() && f.target.getInventory().contains(new ItemStack(Items.DIAMOND)), "Release restores pickup");
+            helper.succeed();
+        } finally {
+            pig.discard();
+            item.discard();
+            Config.BLOCK_INTERACTIONS_WHILE_LEASHED.set(blocked);
+            f.manager.stop();
+            dev.sinoka.leashis.Leashis.manager = previous;
+        }
+    }
+
+    @GameTest(template = "empty")
     public static void ownerLogoutReleasesEveryTarget(GameTestHelper helper) {
         Fixture f = fixture(helper);
         try {

@@ -13,7 +13,8 @@
   "mixins": [
     "leashis.fabric.mixins.json",
     "leashis.piston.mixins.json",
-    "leashis.knot.mixins.json"
+    "leashis.knot.mixins.json",
+    "leashis.interaction.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.16.0",
