@@ -61,7 +61,7 @@ public final class Config {
     }
 
     public static final ModConfigSpec.BooleanValue BLOCK_INTERACTIONS_WHILE_LEASHED = BUILDER
-            .comment("Block manual interactions, inventory actions and item pickup while leashed.")
+            .comment("Block manual interactions and inventory actions while leashed; allow drops and pickup.")
             .define("blockInteractionsWhileLeashed", false);
 
     public static void setBlockInteractionsWhileLeashed(boolean value) throws java.io.IOException {

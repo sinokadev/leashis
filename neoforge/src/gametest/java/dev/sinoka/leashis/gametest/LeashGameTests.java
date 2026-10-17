@@ -349,27 +349,31 @@ public final class LeashGameTests {
             helper.assertTrue(f.target.getMainHandItem().getCount() == 3, "Blocked item use does not consume snowball");
             f.target.connection.handlePlayerAction(new net.minecraft.network.protocol.game.ServerboundPlayerActionPacket(
                     net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.DROP_ITEM, f.target.blockPosition(), net.minecraft.core.Direction.UP, 0));
-            helper.assertTrue(f.target.getMainHandItem().getCount() == 3, "Blocked drop preserves stack");
+            helper.assertTrue(f.target.getMainHandItem().getCount() == 2, "Dropping items remains allowed while interactions are blocked");
             f.target.connection.handleContainerClick(new net.minecraft.network.protocol.game.ServerboundContainerClickPacket(
                     0, f.target.inventoryMenu.getStateId(), 36, 0, net.minecraft.world.inventory.ClickType.PICKUP,
                     ItemStack.EMPTY, new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>()));
-            helper.assertTrue(f.target.getMainHandItem().getCount() == 3 && f.target.inventoryMenu.getCarried().isEmpty(), "Blocked inventory click preserves slot and cursor");
+            helper.assertTrue(f.target.getMainHandItem().getCount() == 2 && f.target.inventoryMenu.getCarried().isEmpty(), "Blocked inventory click preserves slot and cursor");
+            f.target.connection.handleContainerClick(new net.minecraft.network.protocol.game.ServerboundContainerClickPacket(
+                    0, f.target.inventoryMenu.getStateId(), 36, 0, net.minecraft.world.inventory.ClickType.THROW,
+                    ItemStack.EMPTY, new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>()));
+            helper.assertTrue(f.target.getMainHandItem().getCount() == 1, "Inventory drop action remains allowed");
+            f.target.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.SNOWBALL, 2));
             f.target.setGameMode(GameType.CREATIVE);
             f.target.connection.handleSetCreativeModeSlot(new net.minecraft.network.protocol.game.ServerboundSetCreativeModeSlotPacket(36, new ItemStack(Items.DIAMOND, 64)));
             helper.assertTrue(f.target.getMainHandItem().is(Items.SNOWBALL), "Creative inventory writes are blocked");
             item.playerTouch(f.target);
-            helper.assertTrue(!item.isRemoved() && !f.target.getInventory().contains(new ItemStack(Items.DIAMOND)), "Item pickup is blocked");
+            helper.assertTrue(item.isRemoved() && f.target.getInventory().contains(new ItemStack(Items.DIAMOND)), "Item pickup remains allowed while interactions are blocked");
             f.target.setGameMode(GameType.SURVIVAL);
             Config.BLOCK_INTERACTIONS_WHILE_LEASHED.set(false);
             f.target.connection.handleInteract(net.minecraft.network.protocol.game.ServerboundInteractPacket.createAttackPacket(pig, false));
             helper.assertTrue(pig.getHealth() < health, "Disabling lock restores entity attacks");
             f.target.connection.handleUseItem(new net.minecraft.network.protocol.game.ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, 0, 0));
-            helper.assertTrue(f.target.getMainHandItem().getCount() == 2, "Disabling lock restores item use immediately");
+            helper.assertTrue(f.target.getMainHandItem().getCount() == 1, "Disabling lock restores item use immediately");
             Config.BLOCK_INTERACTIONS_WHILE_LEASHED.set(true);
             f.manager.detach(f.target.getUUID(), DetachReason.MANUAL);
             helper.assertTrue(!f.manager.shouldBlockInteractions(f.target), "Release restores interactions while option stays enabled");
-            item.playerTouch(f.target);
-            helper.assertTrue(item.isRemoved() && f.target.getInventory().contains(new ItemStack(Items.DIAMOND)), "Release restores pickup");
+
             helper.succeed();
         } finally {
             pig.discard();
@@ -377,6 +381,40 @@ public final class LeashGameTests {
             Config.BLOCK_INTERACTIONS_WHILE_LEASHED.set(blocked);
             f.manager.stop();
             dev.sinoka.leashis.Leashis.manager = previous;
+        }
+    }
+
+    @GameTest(template = "empty")
+    public static void knotRightClickExplicitlyReleasesLiveAndRetainedTargets(GameTestHelper helper) {
+        Fixture f = fixture(helper);
+        boolean keep = Config.KEEP_ON_LOGOUT.get();
+        boolean allow = Config.ALLOW_LEASHED_REMOVE_FENCE_KNOT.get();
+        try {
+            Config.KEEP_ON_LOGOUT.set(true);
+            Config.ALLOW_LEASHED_REMOVE_FENCE_KNOT.set(false);
+            f.connect();
+            BlockPos fence = helper.absolutePos(new BlockPos(3, 1, 2));
+            helper.getLevel().setBlockAndUpdate(fence, Blocks.OAK_FENCE.defaultBlockState());
+            LeadItem.bindPlayerMobs(f.holder, helper.getLevel(), fence);
+            var knot = (LeashFenceKnotEntity)f.manager.getSession(f.target.getUUID()).holder();
+            helper.assertTrue(f.manager.interactKnot(f.target, knot) && f.manager.isLeashed(f.target.getUUID()), "Bound target retains configured knot restriction");
+            helper.assertTrue(f.manager.toggleReleaseLock(f.holder), "First toggle enables release lock");
+            helper.assertTrue(f.manager.interactKnot(f.holder, knot) && f.manager.isLeashed(f.target.getUUID()), "Locked holder cannot right-click release");
+            helper.assertTrue(!f.manager.toggleReleaseLock(f.holder), "Second toggle disables release lock");
+            // No vanilla knot interaction is invoked: the event itself must release our proxy.
+            new LeashEvents(f.manager).onEntityInteract(new PlayerInteractEvent.EntityInteract(f.holder, InteractionHand.MAIN_HAND, knot));
+            helper.assertTrue(!f.manager.isLeashed(f.target.getUUID()) && f.leadDrops()==1, "Unbound player explicitly releases and refunds live session");
+            f.manager.attach(f.holder, f.target);
+            f.manager.getSession(f.target.getUUID()).proxy().setLeashedTo(knot, true);
+            f.manager.logout(f.target);
+            helper.assertTrue(f.manager.isLeashed(f.target.getUUID()), "Retained session has no live proxy");
+            f.manager.interactKnot(f.holder, knot);
+            helper.assertTrue(!f.manager.isLeashed(f.target.getUUID()) && f.leadDrops()==2, "Right-click releases retained session too");
+            helper.succeed();
+        } finally {
+            Config.KEEP_ON_LOGOUT.set(keep);
+            Config.ALLOW_LEASHED_REMOVE_FENCE_KNOT.set(allow);
+            f.manager.stop();
         }
     }
 

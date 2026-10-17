@@ -33,7 +33,7 @@ public final class LeashEvents {
 
     private void handleInteraction(PlayerInteractEvent event, Entity clicked) {
         if (!(event.getEntity() instanceof ServerPlayer actor)) return;
-        boolean handled = manager.shouldProtectKnot(actor, clicked);
+        boolean handled = manager.interactKnot(actor, clicked);
         ServerPlayer target = clicked instanceof ServerPlayer player ? player
                 : clicked instanceof LeashProxyEntity proxy ? proxy.target() : null;
         if (!handled && target != null) {

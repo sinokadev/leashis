@@ -33,9 +33,14 @@ for file in (root/'mod-common/src/main/java').rglob('*.java'):
   if at('1.21.2'):
    s=s.replace('@Inject(method = "hurt",', '@Inject(method = "hurtServer",')
    s=s.replace('leashis$protectProjectile(DamageSource source,', 'leashis$protectProjectile(net.minecraft.server.level.ServerLevel level, DamageSource source,')
- if file.name in ['PistonMixin.java','KnotDamageMixin.java','InteractionMixin.java','ItemPickupMixin.java'] and a.loader=='fabric':
+ if file.name in ['PistonMixin.java','KnotDamageMixin.java','InteractionMixin.java'] and a.loader=='fabric':
   s=s.replace('import dev.sinoka.leashis.Leashis;', 'import dev.sinoka.leashis.fabric.LeashisFabric;').replace('Leashis.manager', 'LeashisFabric.manager')
  if file.name=='InteractionMixin.java':
+  if not at('1.20.5'):s=s.replace('packet.slotNum() >= 0', 'packet.getSlotNum() >= 0')
+  if at('1.21.5'):
+   s=s.replace('packet.getClickType()', 'packet.clickType()').replace('packet.getSlotNum()', 'packet.slotNum()')
+  if at('26.1'):
+   s=s.replace('packet.clickType()', 'packet.containerInput()').replace('net.minecraft.world.inventory.ClickType', 'net.minecraft.world.inventory.ContainerInput')
   if at('1.21.4'):
    s=s.replace('"handlePickItem"', '"handlePickItemFromBlock", "handlePickItemFromEntity"')
   if at('26.2'):

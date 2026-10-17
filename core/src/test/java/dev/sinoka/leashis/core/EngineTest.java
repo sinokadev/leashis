@@ -205,6 +205,26 @@ public final class EngineTest {
         assert f.engine.pull(f.owner)==LeashEngine.PullResult.STARTED;
         f.engine.logout(f.target); f.engine.resume(f.target); f.engine.tick();
         assert f.actor(f.target).velocity().equals(Vec.ZERO);
+        // /ll is per actor, starts off, blocks release (not attachment), and toggles back.
+        f=new Fixture(); assert !f.engine.releaseLocked(f.owner);
+        assert f.engine.toggleReleaseLock(f.owner); assert f.attach(false);
+        f.engine.advanceTo(25); f.engine.interact(f.owner,f.target,false,false);
+        assert f.engine.isLeashed(f.target) && f.refunds==0;
+        assert !f.engine.releaseLocked(f.stranger);
+        assert !f.engine.toggleReleaseLock(f.owner);
+        f.engine.advanceTo(28); f.engine.interact(f.owner,f.target,false,false);
+        assert !f.engine.isLeashed(f.target) && f.refunds==1;
+        assert f.engine.toggleReleaseLock(f.owner); f.engine.logout(f.owner);
+        assert !f.engine.releaseLocked(f.owner);
+        // Fence release must include retained targets and refund each session once.
+        f=new Fixture(); assert f.attach(false);
+        UUID releaseKnot=UUID.randomUUID(); f.position(releaseKnot,1); f.holders.put(f.proxy(),releaseKnot);
+        assert f.engine.attach(f.owner,f.stranger,true);
+        for(var session:f.engine.sessions()) f.holders.put(session.proxy(),releaseKnot);
+        f.engine.logout(f.target);
+        f.engine.detachFromHolder(releaseKnot);
+        assert !f.engine.isLeashed(f.target) && !f.engine.isLeashed(f.stranger) && f.refunds==2;
+        f.engine.detachFromHolder(releaseKnot); assert f.refunds==2;
         System.out.println("LeashEngine regression suite passed");
     }
 }

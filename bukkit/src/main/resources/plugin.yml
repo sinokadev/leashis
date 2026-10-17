@@ -7,12 +7,18 @@ description: Server-side player leashes
 commands:
   leashis:
     description: Manage Leashis configuration
-    usage: /leashis pull | /leashis reload | /leashis reconnect [true|false] | /leashis death [true|false] | /leashis projectile [true|false] | /leashis fencebreak [true|false] | /leashis piston [true|false] | /leashis interactions [true|false]
+    usage: /leashis lock | /leashis pull | /leashis reload | /leashis reconnect [true|false] | /leashis death [true|false] | /leashis projectile [true|false] | /leashis fencebreak [true|false] | /leashis piston [true|false] | /leashis interactions [true|false]
   l:
     description: Pull players whose leashes you hold
     usage: /l
     permission: leashis.pull
+  ll:
+    description: Toggle right-click leash release lock
+    usage: /ll
+    permission: leashis.lock
 permissions:
+  leashis.lock:
+    default: true
   leashis.pull:
     default: true
   leashis.admin:

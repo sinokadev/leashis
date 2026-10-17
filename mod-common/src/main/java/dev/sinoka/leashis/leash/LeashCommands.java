@@ -13,6 +13,7 @@ public final class LeashCommands {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher, LeashManager manager) {
         dispatcher.register(Commands.literal("leashis")
+                .then(Commands.literal("lock").executes(context -> toggleLock(context.getSource(), manager)))
                 .then(Commands.literal("pull").executes(context -> pull(context.getSource(), manager)))
                 .then(policy("reconnect"))
                 .then(policy("death"))
@@ -20,8 +21,15 @@ public final class LeashCommands {
                 .then(policy("fencebreak"))
                 .then(policy("piston"))
                 .then(policy("interactions")));
+        if (dispatcher.getRoot().getChild("ll") == null)
+            dispatcher.register(Commands.literal("ll").executes(context -> toggleLock(context.getSource(), manager)));
         if (dispatcher.getRoot().getChild("l") == null)
             dispatcher.register(Commands.literal("l").executes(context -> pull(context.getSource(), manager)));
+    }
+    private static int toggleLock(CommandSourceStack source, LeashManager manager) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        boolean locked = manager.toggleReleaseLock(source.getPlayerOrException());
+        source.sendSuccess(() -> Component.literal("우클릭 목줄 해제 잠금: " + (locked ? "켜짐" : "꺼짐")), false);
+        return 1;
     }
     private static int pull(CommandSourceStack source, LeashManager manager) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         var result = manager.pull(source.getPlayerOrException());

@@ -99,6 +99,12 @@ function click(owner,id){
   assert.equal(owner.itemCount,2,'Manual reel does not consume another lead');
   consoleCommand('tp LeashTarget 1 80 0');await delay(400);
   console.log('CLIENT player pull command, slack distance and cooldown PASS');
+  owner.messages=[];owner.chat('/ll');await delay(300);
+  assert(owner.messages.some(m=>m.includes('우클릭 목줄 해제 잠금: 켜짐')),'Non-OP player can enable /ll');
+  click(owner,target.entityId);await delay(300);
+  assert(owner.entities.has(proxy.entityId),'Release lock preserves held target on right-click');
+  owner.messages=[];owner.chat('/ll');await delay(300);
+  assert(owner.messages.some(m=>m.includes('우클릭 목줄 해제 잠금: 꺼짐')),'Second /ll disables release lock');
   await delay(1100);click(owner,target.entityId);await delay(500);
   assert(owner.removed.includes(proxy.entityId),'Manual release removes proxy');
   assert(owner.itemCount>=2 && owner.itemCount<=3,'Manual release does not charge another lead; refund may be picked up');
@@ -136,25 +142,26 @@ function click(owner,id){
   consoleCommand('kill @e[type=minecraft:arrow]');await delay(200);
   owner.messages=[];owner.chat('/l');await delay(200);
   assert(owner.messages.some(m=>m.includes('직접 끌고 있는 플레이어가 없습니다.')),'Fence-bound targets cannot be reeled by former holder');
-  // Global interaction lock also covers unrelated blocks and item drops.
+  // Interaction lock still permits drops while blocking unrelated block actions.
   consoleCommand('leashis interactions true');consoleCommand('gamemode creative LeashTarget');
   consoleCommand('clear LeashTarget');consoleCommand('give LeashTarget minecraft:lead 3');
+  consoleCommand('setblock 3 80 0 minecraft:air');
   consoleCommand('setblock 3 80 0 minecraft:lever[face=floor,powered=false]');await delay(400);
   const useLever=()=>target.write('block_place',{hand:0,location:{x:3,y:80,z:0},direction:1,cursorX:0.5,cursorY:0.5,cursorZ:0.5,insideBlock:false,sequence:20});
   const unpoweredLever=owner.blocks.get('3,80,0');
+  assert.notEqual(unpoweredLever,undefined,'Lever fixture sends a block update');
   useLever();await delay(300);
   assert.equal(owner.blocks.get('3,80,0'),unpoweredLever,'Interaction lock blocks lever use');
   target.write('block_dig',{status:0,location:{x:3,y:80,z:0},face:1,sequence:21});await delay(300);
   assert.equal(data.blocksByStateId[owner.blocks.get('3,80,0')]?.name,'lever','Interaction lock blocks unrelated creative block breaking');
   let lockedDrops=owner.items.length;
   target.write('block_dig',{status:4,location:{x:0,y:0,z:0},face:0,sequence:22});await delay(300);
-  assert.equal(owner.items.length,lockedDrops,'Interaction lock blocks item drops');
-  assert.equal(target.itemCount,3,'Blocked drop preserves inventory');
+  assert.equal(owner.items.length,lockedDrops+1,'Interaction lock permits item drops');
   consoleCommand('leashis interactions false');await delay(300);
   useLever();await delay(300);
   assert.notEqual(owner.blocks.get('3,80,0'),unpoweredLever,'Disabling interaction lock restores lever use while still bound');
   target.write('block_dig',{status:4,location:{x:0,y:0,z:0},face:0,sequence:23});await delay(300);
-  assert.equal(owner.items.length,lockedDrops+1,'Disabling interaction lock restores item drops');
+  assert.equal(owner.items.length,lockedDrops+2,'Drops remain allowed when lock is disabled');
   target.write('block_dig',{status:0,location:{x:3,y:80,z:0},face:1,sequence:24});await delay(300);
   assert.equal(owner.blocks.get('3,80,0'),data.blocksByName.air.defaultState,'Disabling interaction lock restores unrelated block breaking');
   consoleCommand('clear LeashTarget');consoleCommand('kill @e[type=minecraft:item]');
@@ -239,6 +246,9 @@ function click(owner,id){
   assert.equal(owner.items.length,drops,'Fence reconnect does not refund a lead');
   click(target,knot.entityId);target.write('use_entity',{target:knot.entityId,mouse:1,sneaking:false});await delay(500);
   assert(owner.entities.has(knot.entityId)&&owner.entities.has(restored.entityId),'Bound player cannot remove knot');
+  owner.chat('/ll');await delay(250);click(owner,knot.entityId);await delay(300);
+  assert(owner.entities.has(restored.entityId),'Personal release lock also protects own fence right-clicks');
+  owner.chat('/ll');await delay(250);
   click(owner,knot.entityId);await delay(500);
   assert(!owner.entities.has(restored.entityId),'Unbound player can remove knot and detach proxy');
   // The same shot must still remove an empty knot, proving that it hits the knot.

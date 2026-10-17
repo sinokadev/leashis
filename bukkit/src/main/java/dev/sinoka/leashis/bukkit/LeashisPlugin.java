@@ -57,6 +57,14 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
                 getConfig().getBoolean("keepOnLogout", true), getConfig().getBoolean("keepOnDeath", true));
     }
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("ll") || command.getName().equalsIgnoreCase("leashis")
+                && args.length == 1 && args[0].equalsIgnoreCase("lock")) {
+            if (!(sender instanceof Player player)) { sender.sendMessage("플레이어만 사용할 수 있습니다."); return true; }
+            if (!sender.hasPermission("leashis.lock")) { sender.sendMessage("이 명령어를 사용할 권한이 없습니다."); return true; }
+            if (command.getName().equalsIgnoreCase("ll") && args.length != 0) return false;
+            sender.sendMessage("우클릭 목줄 해제 잠금: " + (engine.toggleReleaseLock(player.getUniqueId()) ? "켜짐" : "꺼짐"));
+            return true;
+        }
         if (command.getName().equalsIgnoreCase("l")) return args.length == 0 && pull(sender);
         if (args.length == 1 && args[0].equalsIgnoreCase("pull")) return pull(sender);
         if (!sender.hasPermission("leashis.admin")) { sender.sendMessage("이 명령어를 사용할 권한이 없습니다."); return true; }
@@ -87,10 +95,11 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
         return true;
     }
     @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (command.getName().equalsIgnoreCase("l")) return List.of();
+        if (command.getName().equalsIgnoreCase("l") || command.getName().equalsIgnoreCase("ll")) return List.of();
         List<String> options = new ArrayList<>();
         if (args.length == 1) {
             if (sender.hasPermission("leashis.pull")) options.add("pull");
+            if (sender.hasPermission("leashis.lock")) options.add("lock");
             if (sender.hasPermission("leashis.admin")) { options.add("reload"); options.addAll(POLICIES.keySet()); }
         } else if (args.length == 2 && sender.hasPermission("leashis.admin")
                 && POLICIES.containsKey(args[0].toLowerCase(Locale.ROOT)))
@@ -125,14 +134,6 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
         if (blockInteractions(event.getPlayer())) event.setCancelled(true);
     }
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onBlockedDrop(PlayerDropItemEvent event) {
-        if (blockInteractions(event.getPlayer())) event.setCancelled(true);
-    }
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onBlockedPickup(EntityPickupItemEvent event) {
-        if (event.getEntity() instanceof Player player && blockInteractions(player)) event.setCancelled(true);
-    }
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockedSwap(PlayerSwapHandItemsEvent event) {
         if (blockInteractions(event.getPlayer())) event.setCancelled(true);
     }
@@ -142,7 +143,11 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
     }
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockedInventory(org.bukkit.event.inventory.InventoryClickEvent event) {
-        if (event.getWhoClicked() instanceof Player player && blockInteractions(player)) event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player) || !blockInteractions(player)) return;
+        switch (event.getAction()) {
+            case DROP_ALL_CURSOR, DROP_ONE_CURSOR, DROP_ALL_SLOT, DROP_ONE_SLOT -> { }
+            default -> event.setCancelled(true);
+        }
     }
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockedInventoryDrag(org.bukkit.event.inventory.InventoryDragEvent event) {
@@ -170,10 +175,9 @@ public final class LeashisPlugin extends JavaPlugin implements Listener, LeashEn
         if (blockInteractions(e.getPlayer())) { e.setCancelled(true); return; }
         Entity clicked = e.getRightClicked();
         if (clicked instanceof LeashHitch) {
-            if (engine.protectKnot(e.getPlayer().getUniqueId())) { e.setCancelled(true); return; }
+            if (engine.protectKnot(e.getPlayer().getUniqueId()) || engine.releaseLocked(e.getPlayer().getUniqueId())) { e.setCancelled(true); return; }
             // Own every proxy refund. Vanilla may still process unrelated mobs on this knot.
-            for (LeashEngine.Session s : engine.sessions())
-                if (clicked.getUniqueId().equals(holder(s.proxy()))) engine.detach(s.target());
+            engine.detachFromHolder(clicked.getUniqueId());
             return;
         }
         UUID id = targets.get(clicked.getUniqueId());

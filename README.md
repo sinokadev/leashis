@@ -26,9 +26,9 @@ The [validation record](docs/VALIDATION.md) distinguishes build verification fro
 
 ## Installation
 
-- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.7.jar` in `plugins/`.
-- Fabric: put `leashis-fabric-<MC>-2.0.7.jar` and Fabric API matching your server version in `mods/`.
-- NeoForge: put `leashis-neoforge-<MC>-2.0.7.jar` matching your server version in `mods/`. The Minecraft 1.21.1 build supports NeoForge 21.1.257 or newer.
+- Bukkit, Spigot, or Paper: put `leashis-bukkit-2.0.8.jar` in `plugins/`.
+- Fabric: put `leashis-fabric-<MC>-2.0.8.jar` and Fabric API matching your server version in `mods/`.
+- NeoForge: put `leashis-neoforge-<MC>-2.0.8.jar` matching your server version in `mods/`. The Minecraft 1.21.1 build supports NeoForge 21.1.257 or newer.
 
 Install only one Leashis JAR for your server's platform.
 The server runtime requires Java 17 or newer for 1.20–1.20.4, Java 21 or newer for 1.20.5–1.21.11,
@@ -59,6 +59,12 @@ Use `/l` or `/leashis pull` to reel in all players whose leashes you are holding
 
 Pulling is available to ordinary players. Bukkit servers can control it with `leashis.pull` (default: everyone); configuration commands still require `leashis.admin`. On mods, configuration commands still require OP level 2. If another mod already owns `/l`, use `/leashis pull`.
 
+## Right-click release lock
+
+`/ll` (or `/leashis lock`) toggles your own right-click release lock. It starts off: the first use enables it, and the next use disables it. When enabled, your right-clicks cannot release players you hold or fence knots; attachment and fence transfer still work. Other players keep their normal ability to release a fence knot, subject to the existing restrictions on bound targets. The toggle resets on logout and server restart. Ordinary players can use it; Bukkit exposes `leashis.lock` (default: everyone).
+
+Fence-knot right-clicks explicitly release Leashis connections, including retained offline/respawning targets, before letting vanilla handle unrelated mobs. Bound players remain subject to `allowLeashedRemoveFenceKnot` and the interaction-block option.
+
 ## Configuration
 
 | Platform | Configuration file | How to apply changes |
@@ -79,7 +85,7 @@ Configuration meanings and defaults are shared across platforms.
 | `distanceMax` | `10` | Distance beyond which the leash breaks (1–1024) |
 | `allowLeashedRemoveFenceKnot` | `false` | Allow leashed players to remove fence knots |
 | `keepOnLogout` | `true` | Keep a leashed target's connection across reconnects to the same running server |
-| `blockInteractionsWhileLeashed` | `false` | Block manual interactions, inventory changes, item drops and pickup while leashed |
+| `blockInteractionsWhileLeashed` | `false` | Block manual interactions and inventory changes while leashed; allow item drops and pickup |
 | `protectProjectile` | `true` | Protect occupied fence knots from projectiles |
 | `protectFenceBreak` | `true` | Prevent tied players from breaking their own fence block |
 | `protectPiston` | `true` | Prevent pistons from pushing or pulling occupied fence anchors |
@@ -99,7 +105,7 @@ Administrators (OP level 2 on mods, `leashis.admin` on Bukkit) and the server co
 
 These three protections default to `true` and are independent. Setting one to `false` restores normal damage or block movement for that action; the leash may then break. Fence block breaking is separate from knot interaction (`allowLeashedRemoveFenceKnot`).
 
-`/leashis interactions` shows the interaction lock. `/leashis interactions true` enables it, and `/leashis interactions false` disables it (default). When enabled, targets attached to either a player or a fence cannot break/place/use blocks, attack or interact with entities, use items, manipulate inventories (including crafting/creative inventory), swap hands, drop or pick up items. Open containers are closed and ongoing item use is stopped or its completion blocked. Holders and unbound players remain unrestricted; releasing the target restores interactions immediately. Walking, looking, chat and commands remain available. This lock overrides the three individual protection toggles for actions attempted by the bound player.
+`/leashis interactions` shows the interaction lock. `/leashis interactions true` enables it, and `/leashis interactions false` disables it (default). When enabled, targets attached to either a player or a fence cannot break/place/use blocks, attack or interact with entities, use items, manipulate inventories (including crafting/creative inventory), or swap hands. Item pickup and dropping (including inventory drop actions) remain allowed. Open containers are closed and ongoing item use is stopped or its completion blocked. Holders and unbound players remain unrestricted; releasing the target restores interactions immediately. Walking, looking, chat and commands remain available. This lock overrides the three individual protection toggles for actions attempted by the bound player.
 
 Changes apply immediately and are saved to the platform's configuration file. Turning reconnect retention off also releases targets who are already offline. Turning death retention off releases connections already waiting for respawn; active connections remain until death or another release condition. Holder logout still releases their targets in either mode. Server restarts clear connections in either mode.
 

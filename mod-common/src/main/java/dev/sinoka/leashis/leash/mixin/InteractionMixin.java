@@ -33,16 +33,33 @@ abstract class InteractionMixin {
         if (player.blockPosition().distSqr(pos) <= 1024)
             player.connection.send(new ClientboundBlockUpdatePacket(player.level(), pos));
     }
-    @Inject(method = {"handleInteract", "handleContainerClick", "handleContainerButtonClick", "handleSetCreativeModeSlot",
+    @Inject(method = {"handleInteract", "handleContainerButtonClick",
             "handlePlaceRecipe", "handleEditBook", "handleSignUpdate", "handleSetBeaconPacket", "handleRenameItem", "handlePickItem"},
             at = @At("HEAD"), cancellable = true)
     private void leashis$interaction(CallbackInfo callback) {
         if (leashis$blocked()) { leashis$inventory(); callback.cancel(); }
     }
+    @Inject(method = "handleSetCreativeModeSlot", at = @At("HEAD"), cancellable = true)
+    private void leashis$creative(ServerboundSetCreativeModeSlotPacket packet, CallbackInfo callback) {
+        if (leashis$blocked() && packet.slotNum() >= 0) {
+            leashis$inventory();
+            callback.cancel();
+        }
+    }
+    @Inject(method = "handleContainerClick", at = @At("HEAD"), cancellable = true)
+    private void leashis$container(ServerboundContainerClickPacket packet, CallbackInfo callback) {
+        if (!leashis$blocked()) return;
+        if (packet.getClickType() == net.minecraft.world.inventory.ClickType.THROW
+                || packet.getSlotNum() == -999 && packet.getClickType() == net.minecraft.world.inventory.ClickType.PICKUP) return;
+        leashis$inventory();
+        callback.cancel();
+    }
     @Inject(method = "handlePlayerAction", at = @At("HEAD"), cancellable = true)
     private void leashis$action(ServerboundPlayerActionPacket packet, CallbackInfo callback) {
         if (!leashis$blocked()) return;
-        // Undo client block prediction as well as inventory predictions (drop/swap).
+        if (packet.getAction() == ServerboundPlayerActionPacket.Action.DROP_ITEM
+                || packet.getAction() == ServerboundPlayerActionPacket.Action.DROP_ALL_ITEMS) return;
+        // Undo client block prediction and blocked hand swaps.
         leashis$updateBlock(packet.getPos());
         player.connection.send(new ClientboundBlockChangedAckPacket(packet.getSequence()));
         leashis$inventory();

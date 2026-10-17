@@ -34,7 +34,7 @@ public final class LeashisFabric implements DedicatedServerModInitializer {
                 !(player instanceof ServerPlayer actor) || !manager.shouldProtectFence(actor, pos));
         UseEntityCallback.EVENT.register((player, world, hand, clicked, hit) -> {
             if (!(player instanceof ServerPlayer actor)) return InteractionResult.PASS;
-            if (manager.shouldProtectKnot(actor, clicked)) return InteractionResult.FAIL;
+            if (manager.interactKnot(actor, clicked)) return InteractionResult.FAIL;
             ServerPlayer target = clicked instanceof ServerPlayer p ? p
                     : clicked instanceof LeashProxyEntity proxy ? proxy.target() : null;
             return target != null && manager.tryInteract(actor, target, hand)

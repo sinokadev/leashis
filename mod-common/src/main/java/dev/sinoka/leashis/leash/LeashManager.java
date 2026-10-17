@@ -29,6 +29,16 @@ public final class LeashManager implements LeashEngine.Port {
         return Config.BLOCK_INTERACTIONS_WHILE_LEASHED.get() && engine.isLeashed(player.getUUID());
     }
     public boolean isLeashed(UUID id) { return engine.isLeashed(id); }
+    public boolean toggleReleaseLock(ServerPlayer player) { return engine.toggleReleaseLock(player.getUUID()); }
+    /** Return true only when vanilla's knot interaction must be suppressed. */
+    public boolean interactKnot(ServerPlayer player, Entity clicked) {
+        if (!(clicked instanceof LeashFenceKnotEntity)) return false;
+        if (engine.protectKnot(player.getUUID()) || engine.releaseLocked(player.getUUID())) return true;
+        // Vanilla may miss transient proxies (or retained targets with no live proxy).
+        // Remove our sessions explicitly, then let vanilla process its ordinary mobs/knot.
+        engine.detachFromHolder(clicked.getUUID());
+        return false;
+    }
     public boolean shouldProtectKnot(ServerPlayer p, Entity e) {
         return e instanceof LeashFenceKnotEntity && engine.protectKnot(p.getUUID());
     }

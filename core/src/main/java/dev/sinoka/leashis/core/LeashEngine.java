@@ -34,6 +34,7 @@ public final class LeashEngine {
     private final Map<UUID, Stamp> interactions = new HashMap<>();
     private final Map<UUID, Pull> pulls = new HashMap<>();
     private final Map<UUID, Long> pullCooldowns = new HashMap<>();
+    private final Set<UUID> releaseLocks = new HashSet<>();
     private long tick;
 
     public LeashEngine(Port port, Supplier<Settings> settings) {
@@ -52,6 +53,19 @@ public final class LeashEngine {
         for (Suspended saved : suspended.values()) if (saved.holder() != null) result.add(saved.holder());
         return Set.copyOf(result);
     }
+    public boolean toggleReleaseLock(UUID actor) {
+        if (releaseLocks.remove(actor)) return false;
+        releaseLocks.add(actor);
+        return true;
+    }
+    public boolean releaseLocked(UUID actor) { return releaseLocks.contains(actor); }
+    /** Release active and retained connections without depending on vanilla mob discovery. */
+    public void detachFromHolder(UUID holder) {
+        for (Session session : sessions())
+            if (holder.equals(port.holder(session.proxy()))) detach(session.target());
+        for (Suspended saved : List.copyOf(suspended.values()))
+            if (holder.equals(saved.holder())) detach(saved.session().target());
+    }
     public boolean protectKnot(UUID actor) {
         return isLeashed(actor) && !settings.get().allowKnotRemoval();
     }
@@ -66,7 +80,7 @@ public final class LeashEngine {
         Interaction result;
         if (session != null) {
             if (actor.equals(port.holder(session.proxy()))) {
-                if (tick - session.attachedAt() >= 20) detach(target);
+                if (!releaseLocked(actor) && tick - session.attachedAt() >= 20) detach(target);
                 result = Interaction.HANDLED;
             } else if (lead) result = Interaction.ALREADY_BOUND;
             else return Interaction.PASS;
@@ -143,6 +157,7 @@ public final class LeashEngine {
         detachHeldBy(player);
     }
     public void logout(UUID player) {
+        releaseLocks.remove(player);
         if (!settings.get().keepOnLogout()) { detachInvolving(player); return; }
         suspend(player, false);
         detachHeldBy(player);
@@ -246,7 +261,7 @@ public final class LeashEngine {
     public void stop() {
         for (UUID target : List.copyOf(suspended.keySet())) detach(target);
         for (Session s : sessions()) detach(s.target());
-        interactions.clear(); pulls.clear(); pullCooldowns.clear();
+        interactions.clear(); pulls.clear(); pullCooldowns.clear(); releaseLocks.clear();
     }
     private static boolean eligible(Actor actor) { return actor != null && actor.eligible(); }
 }
