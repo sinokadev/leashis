@@ -1,5 +1,5 @@
 # Leashis
-
+# THIS IS 100% AI SLOP
 > **Notice: This is a very, very AI slop project. ChatGPT implemented this project from start to finish. The human only provided instructions.**
 
 This is a casual, prompt-and-click AI slop project I had ChatGPT build for me and my friends.
